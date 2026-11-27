@@ -15,7 +15,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// ToolParam / ToolInfo khớp với ToolSpec.info() bên Python.
+// ToolParam / ToolInfo mirror ToolSpec.info() on the Python side.
 type ToolParam struct {
 	Name     string   `json:"name"`
 	Type     string   `json:"type"`
@@ -45,8 +45,8 @@ type WorkerInfo struct {
 	Error       string   `json:"error"`
 }
 
-// App là struct được bind sang frontend: mọi method public đều gọi được từ JS
-// qua window.go.main.App.<Method>.
+// App is bound to the frontend: every exported method is callable from JS
+// as window.go.main.App.<Method>.
 type App struct {
 	ctx context.Context
 
@@ -101,7 +101,7 @@ func (a *App) startWorker() error {
 		Script: filepath.Join(pyDir, "worker.py"),
 		Dir:    pyDir,
 		OnNotify: func(n pybridge.Notification) {
-			// Chuyển thẳng notification của Python thành event cho frontend.
+			// Forward Python notifications to the frontend as Wails events.
 			runtime.EventsEmit(a.ctx, n.Method, n.Params)
 		},
 		OnStderr: func(line string) {
@@ -109,7 +109,7 @@ func (a *App) startWorker() error {
 		},
 		OnExit: func(err error) {
 			a.mu.Lock()
-			if a.bridge != self { // đã restart, bỏ qua bridge cũ
+			if a.bridge != self { // restarted meanwhile, ignore the old bridge
 				a.mu.Unlock()
 				return
 			}
@@ -155,7 +155,7 @@ func (a *App) call(method string, params, result any) error {
 	return b.Call(ctx, method, params, result)
 }
 
-// ---------------- Các method gọi từ frontend ----------------
+// ---------------- Methods called from the frontend ----------------
 
 func (a *App) ListTools() ([]ToolInfo, error) {
 	var tools []ToolInfo
@@ -169,7 +169,7 @@ func (a *App) ReloadTools() ([]ToolInfo, error) {
 	return tools, err
 }
 
-// RunTool chạy tool ở nền, trả run_id. Log/progress/kết quả đến qua events
+// RunTool starts a tool in the background and returns its run_id. Logs, progress and the result arrive as events
 // run.log, run.progress, run.finished.
 func (a *App) RunTool(name string, params map[string]any) (string, error) {
 	buf := make([]byte, 6)
@@ -217,7 +217,7 @@ func (a *App) GetWorkerInfo() WorkerInfo {
 	return info
 }
 
-// SaveResult cho phép người dùng lưu kết quả JSON của một run ra file.
+// SaveResult lets the user save a run's result as a JSON file.
 func (a *App) SaveResult(defaultName string, data any) (string, error) {
 	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{DefaultFilename: defaultName,
 		Filters: []runtime.FileFilter{{DisplayName: "JSON", Pattern: "*.json"}}})
@@ -231,7 +231,7 @@ func (a *App) SaveResult(defaultName string, data any) (string, error) {
 	return path, writeFile(path, b)
 }
 
-// PickFile mở hộp thoại chọn file cho param type="file".
+// PickFile opens a file picker for params of type "file".
 func (a *App) PickFile(title string) (string, error) {
 	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: title})
 }

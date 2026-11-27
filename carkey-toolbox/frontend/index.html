@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -9,26 +9,26 @@
 <body>
   <aside id="sidebar">
     <div class="brand">🔑 Car Key Toolbox</div>
-    <input id="search" placeholder="Tìm tool..." />
+    <input id="search" placeholder="Search tools..." />
     <nav id="tool-list"></nav>
     <div class="sidebar-footer">
-      <button id="btn-reload" title="Nạp lại tools/*.py mà không restart">⟳ Reload tools</button>
-      <button id="btn-restart" title="Khởi động lại Python worker">↻ Restart Python</button>
+      <button id="btn-reload" title="Reload tools/*.py without restarting">⟳ Reload tools</button>
+      <button id="btn-restart" title="Restart the Python worker">↻ Restart Python</button>
       <div id="worker-status" class="status">…</div>
     </div>
   </aside>
 
   <main>
     <section id="tool-panel">
-      <div class="empty">Chọn một tool bên trái.</div>
+      <div class="empty">Select a tool on the left.</div>
     </section>
 
     <section id="runs">
       <div class="runs-header">
         <div id="run-tabs"></div>
-        <button id="btn-clear" class="ghost">Xoá run đã xong</button>
+        <button id="btn-clear" class="ghost">Clear finished</button>
       </div>
-      <div id="run-view"><div class="empty">Chưa có run nào.</div></div>
+      <div id="run-view"><div class="empty">No runs yet.</div></div>
     </section>
   </main>
 

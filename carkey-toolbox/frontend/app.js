@@ -1,4 +1,4 @@
-// Frontend tối giản: gọi Go qua window.go.main.App.*, nhận event qua window.runtime.EventsOn.
+// Minimal frontend: calls Go via window.go.main.App.*, receives events via window.runtime.EventsOn.
 "use strict";
 
 const api = () => window.go.main.App;
@@ -40,7 +40,7 @@ async function loadTools(reload = false) {
   renderToolList();
   if (state.selected) {
     const t = state.tools.find((x) => x.name === state.selected.name);
-    t ? selectTool(t) : ($("#tool-panel").innerHTML = '<div class="empty">Chọn một tool bên trái.</div>');
+    t ? selectTool(t) : ($("#tool-panel").innerHTML = '<div class="empty">Select a tool on the left.</div>');
   }
 }
 
@@ -62,7 +62,7 @@ function renderToolList() {
       }, t.title));
     }
   }
-  if (!list.children.length) list.append(el("div", { class: "empty" }, "Không có tool."));
+  if (!list.children.length) list.append(el("div", { class: "empty" }, "No tools found."));
 }
 
 function inputFor(p, value) {
@@ -106,7 +106,7 @@ function selectTool(t) {
     form,
     el("div", { class: "actions" },
       el("button", { class: "primary", onclick: runSelected }, "▶ Run"),
-      el("button", { class: "ghost", onclick: () => { delete state.lastParams[t.name]; saveLastParams(); selectTool(t); } }, "Reset mặc định")),
+      el("button", { class: "ghost", onclick: () => { delete state.lastParams[t.name]; saveLastParams(); selectTool(t); } }, "Reset to defaults")),
   );
 }
 
@@ -164,7 +164,7 @@ function onRunEvent(kind, p) {
     if (p.ok) r.progress = 1;
     const secs = ((new Date() - r.started) / 1000).toFixed(1);
     r.logs.push({ level: p.ok ? "sys" : p.cancelled ? "warn" : "error",
-      message: p.ok ? `✔ xong sau ${secs}s` : `✖ ${p.error}${p.traceback ? "\n" + p.traceback : ""}` });
+      message: p.ok ? `✔ done in ${secs}s` : `✖ ${p.error}${p.traceback ? "\n" + p.traceback : ""}` });
   }
   scheduleRender();
 }
@@ -187,7 +187,7 @@ function renderRuns() {
   }
   const view = $("#run-view");
   const r = state.runs.get(state.activeRun);
-  if (!r) { view.innerHTML = '<div class="empty">Chưa có run nào.</div>'; return; }
+  if (!r) { view.innerHTML = '<div class="empty">No runs yet.</div>'; return; }
 
   const logBox = view.querySelector(".log");
   const stick = !logBox || logBox.scrollTop + logBox.clientHeight >= logBox.scrollHeight - 20;
@@ -201,12 +201,12 @@ function renderRuns() {
       el("span", {}, r.progressMsg || `${Math.round(r.progress * 100)}%`),
       r.status === "running"
         ? el("button", { class: "danger", onclick: () => api().CancelRun(r.id) }, "■ Stop")
-        : el("button", { onclick: () => api().SaveResult(`${r.tool}-${r.id}.json`, { tool: r.tool, result: r.result, error: r.error, logs: r.logs }) }, "💾 Lưu"),
+        : el("button", { onclick: () => api().SaveResult(`${r.tool}-${r.id}.json`, { tool: r.tool, result: r.result, error: r.error, logs: r.logs }) }, "💾 Save"),
       el("button", { class: "ghost", onclick: () => navigator.clipboard.writeText(r.logs.map((l) => l.message).join("\n")) }, "Copy log")),
     log,
   );
   if (r.result !== null) {
-    view.append(el("details", { class: "result", open: true }, el("summary", {}, "Kết quả"), el("pre", {}, JSON.stringify(r.result, null, 2))));
+    view.append(el("details", { class: "result", open: true }, el("summary", {}, "Result"), el("pre", {}, JSON.stringify(r.result, null, 2))));
   }
   if (stick) log.scrollTop = log.scrollHeight;
 }
@@ -221,7 +221,7 @@ function setStatus(ok, text) {
 async function refreshStatus() {
   const info = await api().GetWorkerInfo();
   if (info.running && !info.error) setStatus(true, `Python ${info.python} (pid ${info.pid})`);
-  else setStatus(false, info.error || "Python worker không chạy");
+  else setStatus(false, info.error || "Python worker is not running");
   $("#worker-status").title = `${info.interpreter}\n${info.pythonDir}`;
 }
 
@@ -238,7 +238,7 @@ function init() {
   $("#search").addEventListener("input", renderToolList);
   $("#btn-reload").addEventListener("click", () => loadTools(true));
   $("#btn-restart").addEventListener("click", async () => {
-    setStatus(false, "Đang khởi động lại…");
+    setStatus(false, "Restarting…");
     try { await api().RestartWorker(); } catch (e) { setStatus(false, String(e)); }
     await refreshStatus();
     await loadTools();

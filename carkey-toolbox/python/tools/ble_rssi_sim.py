@@ -1,5 +1,5 @@
-"""Mô phỏng phone tiến lại gần xe, ước lượng khoảng cách từ RSSI và phân vùng
-(welcome / approach / unlock). Dùng để demo progress + cancel + kết quả dạng bảng."""
+"""Simulates a phone approaching the car, estimates distance from RSSI and classifies
+zones (welcome / approach / unlock). Demonstrates progress, cancel and tabular results."""
 import math
 import random
 
@@ -28,16 +28,16 @@ def zone(d):
 @tool(
     name="ble_rssi_sim",
     title="BLE RSSI approach simulator",
-    description="Mô phỏng phone đi từ xa lại gần xe, lọc RSSI (EMA) và phân vùng khoảng cách.",
+    description="Simulate a phone walking towards the car, filter RSSI (EMA) and classify distance zones.",
     category="BLE",
     params=[
-        Param("start_m", "float", label="Khoảng cách bắt đầu (m)", default=15.0),
-        Param("speed", "float", label="Tốc độ đi bộ (m/s)", default=1.2),
+        Param("start_m", "float", label="Start distance (m)", default=15.0),
+        Param("speed", "float", label="Walking speed (m/s)", default=1.2),
         Param("tx_power", "int", label="TX power @1m (dBm)", default=-59),
         Param("path_loss_n", "float", label="Path loss exponent", default=2.2),
-        Param("noise_db", "float", label="Nhiễu (dB, std)", default=4.0),
+        Param("noise_db", "float", label="Noise (dB, std)", default=4.0),
         Param("alpha", "float", label="EMA alpha", default=0.3),
-        Param("interval_ms", "int", label="Chu kỳ quảng bá (ms)", default=200),
+        Param("interval_ms", "int", label="Advertising interval (ms)", default=200),
     ],
 )
 def run(ctx, start_m, speed, tx_power, path_loss_n, noise_db, alpha, interval_ms):
@@ -61,5 +61,5 @@ def run(ctx, start_m, speed, tx_power, path_loss_n, noise_db, alpha, interval_ms
         ctx.progress(1 - (d - 0.5) / (start_m - 0.5), f"{d:.1f} m")
         d -= speed * dt
         t += dt
-        ctx.sleep(dt / 4)  # chạy nhanh gấp 4 lần thời gian thực
+        ctx.sleep(dt / 4)  # run 4x faster than real time
     return {"zone_transitions": events, "duration_s": round(t, 2)}

@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-// Không bật cửa sổ console đen khi chạy python.exe từ app GUI.
+// Do not pop up a console window when starting python.exe from the GUI app.
 func hideWindow(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000} // CREATE_NO_WINDOW
 }

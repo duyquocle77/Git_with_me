@@ -1,7 +1,7 @@
-// Package pybridge khởi chạy Python worker như tiến trình con và nói chuyện
-// với nó bằng JSON-RPC 2.0 (mỗi message một dòng) qua stdin/stdout.
+// Package pybridge starts the Python worker as a child process and talks to it
+// using JSON-RPC 2.0 (one message per line) over stdin/stdout.
 //
-// Package này không phụ thuộc Wails nên có thể test độc lập bằng `go test`.
+// It does not depend on Wails, so it can be tested on its own with `go test`.
 package pybridge
 
 import (
@@ -17,13 +17,13 @@ import (
 	"sync/atomic"
 )
 
-// Notification là message Python gửi lên mà không có id (log, progress, ...).
+// Notification is a message from Python without an id (log, progress, ...).
 type Notification struct {
 	Method string          `json:"method"`
 	Params json.RawMessage `json:"params"`
 }
 
-// RPCError là lỗi do phía Python trả về.
+// RPCError is an error returned by the Python side.
 type RPCError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -32,18 +32,18 @@ type RPCError struct {
 
 func (e *RPCError) Error() string { return fmt.Sprintf("python: %s", e.Message) }
 
-// ErrClosed được trả về khi worker đã thoát.
+// ErrClosed is returned when the worker has exited.
 var ErrClosed = errors.New("python worker is not running")
 
 type Config struct {
-	Python     string   // đường dẫn interpreter
-	Script     string   // đường dẫn worker.py
-	Dir        string   // working directory (tuỳ chọn)
-	Env        []string // biến môi trường thêm
+	Python     string   // interpreter path
+	Script     string   // path to worker.py
+	Dir        string   // working directory (optional)
+	Env        []string // extra environment variables
 	OnNotify   func(Notification)
 	OnStderr   func(line string)
 	OnExit     func(err error)
-	MaxLineLen int // mặc định 16 MiB
+	MaxLineLen int // default 16 MiB
 }
 
 type message struct {
@@ -69,7 +69,7 @@ type Bridge struct {
 	done    chan struct{}
 }
 
-// Start chạy `python -u worker.py` và bắt đầu đọc output.
+// Start runs `python -u worker.py` and begins reading its output.
 func Start(cfg Config) (*Bridge, error) {
 	if cfg.MaxLineLen == 0 {
 		cfg.MaxLineLen = 16 << 20
@@ -173,7 +173,7 @@ func (b *Bridge) shutdown(err error) {
 	}
 }
 
-// Call gửi request và chờ kết quả. result có thể nil.
+// Call sends a request and waits for the response. result may be nil.
 func (b *Bridge) Call(ctx context.Context, method string, params any, result any) error {
 	id := b.nextID.Add(1)
 	ch := make(chan message, 1)
@@ -227,13 +227,13 @@ func (b *Bridge) forget(id int64) {
 	b.mu.Unlock()
 }
 
-// Done đóng khi worker đã thoát.
+// Done is closed once the worker has exited.
 func (b *Bridge) Done() <-chan struct{} { return b.done }
 
-// Pid của tiến trình Python.
+// Pid of the Python process.
 func (b *Bridge) Pid() int { return b.cmd.Process.Pid }
 
-// Close đóng stdin (worker tự thoát), nếu không thoát kịp thì kill.
+// Close closes stdin (the worker exits on its own) and kills it if it does not exit in time.
 func (b *Bridge) Close(ctx context.Context) error {
 	_ = b.stdin.Close()
 	select {

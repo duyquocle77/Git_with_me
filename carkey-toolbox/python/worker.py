@@ -1,16 +1,16 @@
-"""Python worker cho Car Key Toolbox.
+"""Python worker for Car Key Toolbox.
 
-Go app khởi chạy file này như một tiến trình con và nói chuyện bằng
-JSON-RPC 2.0, mỗi message là một dòng JSON trên stdin/stdout.
+The Go app starts this file as a child process and talks to it using
+JSON-RPC 2.0, one JSON message per line on stdin/stdout.
 
 Methods (Go -> Python):
     ping                         -> {"python": "...", "pid": ...}
     list_tools                   -> [ToolInfo, ...]
     reload_tools                 -> [ToolInfo, ...]
-    run_tool {run_id, tool, params} -> {"run_id": ...}   (chạy nền, trả về ngay)
+    run_tool {run_id, tool, params} -> {"run_id": ...}   (runs in background, returns immediately)
     cancel   {run_id}            -> {"ok": bool}
 
-Notifications (Python -> Go, không có "id"):
+Notifications (Python -> Go, no "id"):
     run.log      {run_id, level, message}
     run.progress {run_id, value, message}
     run.finished {run_id, ok, result?, error?, cancelled}
@@ -37,8 +37,8 @@ sys.path.insert(0, str(HERE))
 import toolkit  # noqa: E402
 
 # ---------------------------------------------------------------------------
-# Bảo vệ kênh protocol: giữ fd 1 gốc riêng cho JSON-RPC, rồi trỏ fd 1 sang
-# stderr. Nhờ vậy print() hay subprocess ghi ra stdout không làm hỏng protocol.
+# Protect the protocol channel: keep the original fd 1 for JSON-RPC only and
+# point fd 1 at stderr, so print() or subprocesses writing to stdout cannot corrupt it.
 # ---------------------------------------------------------------------------
 _proto_fd = os.dup(1)
 os.dup2(2, 1)
@@ -58,7 +58,7 @@ def notify(method: str, params: dict[str, Any]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Chuyển print() của từng thread tool thành run.log
+# Route print() from each tool thread to run.log
 # ---------------------------------------------------------------------------
 _thread_ctx = threading.local()
 
@@ -99,7 +99,7 @@ sys.stderr = _stderr
 
 
 # ---------------------------------------------------------------------------
-# Nạp tool
+# Tool loading
 # ---------------------------------------------------------------------------
 def tools_dirs() -> list[Path]:
     dirs = [HERE / "tools"]
@@ -125,14 +125,14 @@ def load_tools() -> list[dict[str, Any]]:
                 sys.modules[mod_name] = module
                 spec.loader.exec_module(module)
             except Exception:
-                notify("worker.log", {"level": "error", "message": f"Lỗi nạp {path.name}:\n{traceback.format_exc()}"})
+                notify("worker.log", {"level": "error", "message": f"Failed to load {path.name}:\n{traceback.format_exc()}"})
             finally:
                 toolkit._current_source = ""
     return [t.info() for t in toolkit._registry().values()]
 
 
 # ---------------------------------------------------------------------------
-# Chạy tool
+# Running tools
 # ---------------------------------------------------------------------------
 _runs: dict[str, toolkit.RunContext] = {}
 _runs_lock = threading.Lock()
@@ -146,8 +146,8 @@ def _run_thread(spec: toolkit.ToolSpec, ctx: toolkit.RunContext, raw_params: dic
         result = spec.func(ctx, **kwargs)
         payload.update(ok=True, result=result)
     except toolkit.Cancelled:
-        payload.update(cancelled=True, error="Đã dừng theo yêu cầu")
-    except Exception as exc:  # lỗi của tool không được làm sập worker
+        payload.update(cancelled=True, error="Stopped by user")
+    except Exception as exc:  # a failing tool must never crash the worker
         payload.update(error=f"{type(exc).__name__}: {exc}", traceback=traceback.format_exc())
     finally:
         _stdout.flush_thread()
@@ -179,7 +179,7 @@ def m_run_tool(p: dict) -> dict:
     run_id, name = p["run_id"], p["tool"]
     spec = toolkit._registry().get(name)
     if spec is None:
-        raise KeyError(f"không có tool '{name}'")
+        raise KeyError(f"unknown tool '{name}'")
     ctx = toolkit.RunContext(run_id, notify)
     with _runs_lock:
         _runs[run_id] = ctx
@@ -232,7 +232,7 @@ def main() -> None:
         line = line.strip()
         if line:
             handle(line)
-    # stdin đóng => Go app đã thoát, dừng các run đang chạy
+    # stdin closed => the Go app exited; stop any running tools
     with _runs_lock:
         for ctx in _runs.values():
             ctx.request_cancel()

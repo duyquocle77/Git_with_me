@@ -1,22 +1,22 @@
-"""SDK nhỏ để khai báo tool cho Car Key Toolbox.
+"""Small SDK for declaring Car Key Toolbox tools.
 
-Mỗi file trong python/tools/ định nghĩa một hoặc nhiều hàm có decorator @tool.
-Hàm nhận `ctx` (RunContext) làm tham số đầu tiên, các tham số còn lại lấy từ form UI.
+Each file in python/tools/ defines one or more functions decorated with @tool.
+The function receives `ctx` (RunContext) first; the remaining arguments come from the UI form.
 
     from toolkit import tool, Param
 
     @tool(
         name="hello",
         title="Hello",
-        description="Ví dụ đơn giản",
+        description="Minimal example",
         params=[Param("who", "string", default="world")],
     )
     def hello(ctx, who):
         ctx.log(f"Hello {who}")
         return {"greeting": f"Hello {who}"}
 
-`print()` bên trong tool cũng được chuyển thành log hiển thị trên UI,
-nên script cũ có thể bọc lại mà không cần sửa nhiều.
+`print()` inside a tool is also shown as a log line in the UI,
+so existing scripts can be wrapped with few changes.
 """
 
 from __future__ import annotations
@@ -35,19 +35,19 @@ class Param:
     label: str = ""
     default: Any = None
     help: str = ""
-    options: list[str] = field(default_factory=list)  # cho type="choice"
+    options: list[str] = field(default_factory=list)  # for type="choice"
     required: bool = False
 
     def __post_init__(self) -> None:
         if self.type not in PARAM_TYPES:
-            raise ValueError(f"param {self.name}: type '{self.type}' không hợp lệ, chọn một trong {sorted(PARAM_TYPES)}")
+            raise ValueError(f"param {self.name}: type '{self.type}' is invalid, must be one of {sorted(PARAM_TYPES)}")
         if not self.label:
             self.label = self.name
 
     def coerce(self, value: Any) -> Any:
         if value is None or value == "":
             if self.required:
-                raise ValueError(f"thiếu tham số bắt buộc '{self.name}'")
+                raise ValueError(f"missing required parameter '{self.name}'")
             return self.default
         if self.type == "int":
             return int(value)
@@ -58,7 +58,7 @@ class Param:
                 return value.strip().lower() in {"1", "true", "yes", "on"}
             return bool(value)
         if self.type == "choice" and self.options and value not in self.options:
-            raise ValueError(f"'{value}' không thuộc {self.options}")
+            raise ValueError(f"'{value}' is not one of {self.options}")
         return str(value) if self.type in {"string", "file"} else value
 
 
@@ -84,23 +84,23 @@ class ToolSpec:
 
 
 class Cancelled(Exception):
-    """Raise (hoặc để ctx.check_cancel() raise) khi người dùng bấm Stop."""
+    """Raised (e.g. by ctx.check_cancel()) when the user presses Stop."""
 
 
 class RunContext:
-    """Đối tượng truyền vào tool để báo log / tiến độ / kiểm tra cancel."""
+    """Passed to each tool to report logs / progress and check for cancellation."""
 
     def __init__(self, run_id: str, emit: Callable[[str, dict], None]):
         self.run_id = run_id
         self._emit = emit
         self._cancel = threading.Event()
 
-    # --- dùng trong tool ---
+    # --- for use inside tools ---
     def log(self, message: str, level: str = "info") -> None:
         self._emit("run.log", {"run_id": self.run_id, "level": level, "message": str(message)})
 
     def progress(self, value: float, message: str = "") -> None:
-        """value trong khoảng 0..1"""
+        """value in the range 0..1"""
         self._emit("run.progress", {"run_id": self.run_id, "value": max(0.0, min(1.0, float(value))), "message": message})
 
     @property
@@ -112,11 +112,11 @@ class RunContext:
             raise Cancelled()
 
     def sleep(self, seconds: float) -> None:
-        """sleep nhưng thoát ngay khi bị cancel."""
+        """Sleep, but return immediately (raising Cancelled) when cancelled."""
         if self._cancel.wait(seconds):
             raise Cancelled()
 
-    # --- dùng nội bộ ---
+    # --- internal ---
     def request_cancel(self) -> None:
         self._cancel.set()
 

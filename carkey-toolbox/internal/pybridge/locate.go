@@ -8,8 +8,8 @@ import (
 	"runtime"
 )
 
-// FindPythonDir tìm thư mục chứa worker.py theo thứ tự:
-// $CARKEY_PYTHON_DIR, cạnh file thực thi, Resources/ (macOS .app), thư mục hiện tại.
+// FindPythonDir locates the directory containing worker.py, in order:
+// $CARKEY_PYTHON_DIR, next to the executable, Resources/ (macOS .app), current directory.
 func FindPythonDir() (string, error) {
 	var candidates []string
 	if d := os.Getenv("CARKEY_PYTHON_DIR"); d != "" {
@@ -20,7 +20,7 @@ func FindPythonDir() (string, error) {
 		candidates = append(candidates,
 			filepath.Join(dir, "python"),
 			filepath.Join(dir, "..", "Resources", "python"),
-			filepath.Join(dir, "..", "..", "python"), // build/bin/<exe> khi dev
+			filepath.Join(dir, "..", "..", "python"), // build/bin/<exe> during development
 		)
 	}
 	if wd, err := os.Getwd(); err == nil {
@@ -31,10 +31,10 @@ func FindPythonDir() (string, error) {
 			return filepath.Abs(c)
 		}
 	}
-	return "", errors.New("không tìm thấy thư mục python/ chứa worker.py (đặt CARKEY_PYTHON_DIR)")
+	return "", errors.New("cannot find the python/ directory containing worker.py (set CARKEY_PYTHON_DIR)")
 }
 
-// FindInterpreter chọn Python: $CARKEY_PYTHON, venv trong python/.venv, rồi PATH.
+// FindInterpreter picks Python: $CARKEY_PYTHON, then python/.venv, then PATH.
 func FindInterpreter(pyDir string) (string, error) {
 	if p := os.Getenv("CARKEY_PYTHON"); p != "" {
 		return p, nil
@@ -51,5 +51,5 @@ func FindInterpreter(pyDir string) (string, error) {
 			return p, nil
 		}
 	}
-	return "", errors.New("không tìm thấy Python (cài Python 3.10+ hoặc đặt CARKEY_PYTHON)")
+	return "", errors.New("Python not found (install Python 3.10+ or set CARKEY_PYTHON)")
 }

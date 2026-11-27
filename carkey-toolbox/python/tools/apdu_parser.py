@@ -1,4 +1,4 @@
-"""Giải mã APDU (ISO 7816-4) và BER-TLV - hữu ích khi debug trao đổi NFC/SE của digital key."""
+"""Decode APDUs (ISO 7816-4) and BER-TLV - handy when debugging digital key NFC/SE exchanges."""
 from toolkit import tool, Param
 
 
@@ -8,19 +8,19 @@ def parse_tlv(data: bytes, depth=0, out=None):
     while i < len(data):
         start = i
         tag = data[i]; i += 1
-        if tag & 0x1F == 0x1F:  # tag nhiều byte
+        if tag & 0x1F == 0x1F:  # multi-byte tag
             while i < len(data) and data[i] & 0x80:
                 tag = (tag << 8) | data[i]; i += 1
             tag = (tag << 8) | data[i]; i += 1
         if i >= len(data):
-            raise ValueError(f"TLV cụt tại offset {start}")
+            raise ValueError(f"truncated TLV at offset {start}")
         length = data[i]; i += 1
         if length & 0x80:
             n = length & 0x7F
             length = int.from_bytes(data[i:i + n], "big"); i += n
         value = data[i:i + length]
         if len(value) != length:
-            raise ValueError(f"tag {tag:X}: cần {length} byte, chỉ còn {len(value)}")
+            raise ValueError(f"tag {tag:X}: expected {length} bytes, only {len(value)} left")
         i += length
         constructed = bool((tag >> (8 * ((tag.bit_length() - 1) // 8))) & 0x20)
         out.append({"depth": depth, "tag": f"{tag:X}", "len": length,
@@ -32,7 +32,7 @@ def parse_tlv(data: bytes, depth=0, out=None):
 
 def parse_command(b: bytes):
     if len(b) < 4:
-        raise ValueError("APDU command cần tối thiểu 4 byte (CLA INS P1 P2)")
+        raise ValueError("APDU command needs at least 4 bytes (CLA INS P1 P2)")
     cla, ins, p1, p2 = b[:4]
     rest = b[4:]
     cmd = {"CLA": f"{cla:02X}", "INS": f"{ins:02X}", "P1": f"{p1:02X}", "P2": f"{p2:02X}"}
@@ -52,12 +52,12 @@ def parse_command(b: bytes):
 @tool(
     name="apdu_parser",
     title="APDU / TLV parser",
-    description="Dán hex của APDU command hoặc response, tool tách header và giải mã BER-TLV.",
+    description="Paste an APDU command or response in hex; splits the header and decodes BER-TLV.",
     category="NFC / SE",
     params=[
         Param("hex", "string", label="Hex", required=True,
               default="00A4040008A000000809434343"),
-        Param("kind", "choice", label="Loại", default="command", options=["command", "response", "tlv"]),
+        Param("kind", "choice", label="Kind", default="command", options=["command", "response", "tlv"]),
     ],
 )
 def run(ctx, hex, kind):
@@ -68,12 +68,12 @@ def run(ctx, hex, kind):
         result["header"], data = parse_command(b)
         ctx.log(f"Header: {result['header']}")
         if result["header"]["INS"] == "A4" and result["header"]["P1"] == "04":
-            result["aid"] = data.hex().upper()  # SELECT by AID: data là AID thô, không phải TLV
+            result["aid"] = data.hex().upper()  # SELECT by AID: data is a raw AID, not TLV
             ctx.log(f"SELECT AID = {result['aid']}")
             data = b""
     elif kind == "response":
         if len(b) < 2:
-            raise ValueError("response cần tối thiểu SW1 SW2")
+            raise ValueError("response needs at least SW1 SW2")
         data, sw = b[:-2], b[-2:]
         result["SW"] = sw.hex().upper()
         ctx.log(f"SW = {result['SW']}" + ("  (OK)" if sw == b"\x90\x00" else ""), "info" if sw == b"\x90\x00" else "warn")
@@ -83,5 +83,5 @@ def run(ctx, hex, kind):
             for t in result["tlv"]:
                 ctx.log("  " * t["depth"] + f"{t['tag']} [{t['len']}] {t['value']}")
         except Exception as exc:
-            ctx.log(f"Không parse được TLV: {exc}", "warn")
+            ctx.log(f"Could not parse TLV: {exc}", "warn")
     return result

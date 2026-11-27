@@ -1,20 +1,20 @@
-"""Mẫu bọc một script/CLI có sẵn: chạy subprocess, stream từng dòng output lên UI,
-hỗ trợ Stop. Đổi COMMAND thành script thật của bạn (simulator, flash tool, ...)."""
+"""Template for wrapping an existing script/CLI: runs a subprocess, streams each output
+line to the UI and supports Stop. Replace DEMO with your real script (simulator, flash tool, ...)."""
 import subprocess
 import sys
 
 from toolkit import tool, Param
 
-# Ví dụ: script cũ in ra stdout. Thay bằng ["python", "path/to/your_script.py", ...]
+# Example: a legacy script printing to stdout. Replace with ["python", "path/to/your_script.py", ...]
 DEMO = "import time\nfor i in range(10):\n    print(f'step {i}', flush=True)\n    time.sleep(0.3)\n"
 
 
 @tool(
     name="legacy_script",
     title="Run existing script (template)",
-    description="Mẫu chạy một script/CLI có sẵn qua subprocess và stream output.",
+    description="Template: run an existing script/CLI as a subprocess and stream its output.",
     category="Examples",
-    params=[Param("args", "string", label="Tham số thêm", default="")],
+    params=[Param("args", "string", label="Extra arguments", default="")],
 )
 def run(ctx, args):
     cmd = [sys.executable, "-u", "-c", DEMO] + args.split()
@@ -34,5 +34,5 @@ def run(ctx, args):
             proc.kill()
         proc.wait()
     if proc.returncode != 0:
-        raise RuntimeError(f"script thoát với mã {proc.returncode}")
+        raise RuntimeError(f"script exited with code {proc.returncode}")
     return {"returncode": proc.returncode, "lines": lines}
