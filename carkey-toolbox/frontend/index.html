@@ -53,30 +53,60 @@
     <div id="view-cicd" class="view hidden">
       <div class="ci-layout">
         <aside class="ci-panel">
-          <label class="ci-field">Pipeline <select id="ci-pipeline"></select></label>
-          <p id="ci-desc" class="muted"></p>
-          <form id="ci-params" class="ci-params"></form>
-          <div class="ci-sub">Steps</div>
-          <div id="ci-steps-select"></div>
-          <label class="poll"><input type="checkbox" id="ci-open" checked /> Open release folder when done</label>
-          <div class="actions">
-            <button id="ci-run" class="primary">▶ Run pipeline</button>
-            <button id="ci-stop" class="danger hidden">■ Stop</button>
+          <div class="ci-card">
+            <div class="ci-label">Pipeline</div>
+            <select id="ci-pipeline"></select>
+            <p id="ci-desc" class="ci-desc"></p>
           </div>
-          <div class="ci-sub">History</div>
-          <div id="ci-history" class="ci-history"></div>
-          <div class="ci-foot"><span id="ci-config" class="muted"></span>
-            <button id="ci-reload" class="ghost" title="Re-read cicd_config.json">⟳</button></div>
+          <details class="ci-sec" open>
+            <summary>📁 Paths <span id="ci-paths-badge" class="ci-badge"></span></summary>
+            <div id="ci-paths"></div>
+            <div id="ci-preview" class="ci-preview"></div>
+            <div id="ci-saved" class="ci-saved"></div>
+          </details>
+          <details class="ci-sec" open>
+            <summary>⚙️ Parameters</summary>
+            <form id="ci-params" class="ci-form"></form>
+          </details>
+          <details class="ci-sec" open>
+            <summary>🧩 Steps <span id="ci-steps-badge" class="ci-badge"></span></summary>
+            <div id="ci-steps-select"></div>
+          </details>
+          <label class="switch-row"><input type="checkbox" id="ci-open" class="switch" checked /> Open release folder when done</label>
+          <details class="ci-sec">
+            <summary>🕘 History <span id="ci-history-badge" class="ci-badge"></span></summary>
+            <div id="ci-history"></div>
+          </details>
+          <div class="ci-foot"><span id="ci-config"></span><button id="ci-reload" class="ghost" title="Re-read cicd_config.json">⟳</button></div>
         </aside>
+
         <section class="ci-main">
-          <div class="ci-status">
-            <span id="ci-state" class="chip">idle</span>
-            <span id="ci-release" class="muted"></span>
-            <button id="ci-open-dir" class="hidden">📂 Open release folder</button>
-            <button id="ci-open-log" class="ghost hidden">📄 pipeline.log</button>
+          <div id="ci-hero" class="ci-hero idle">
+            <div class="ci-hero-info">
+              <div class="ci-hero-title"><span id="ci-title">—</span><span id="ci-state" class="ci-status">Ready</span></div>
+              <div class="ci-hero-sub"><span id="ci-elapsed">⏱ —</span><span id="ci-eta"></span><span id="ci-release" class="mono"></span></div>
+            </div>
+            <button id="ci-run" class="ci-run">▶ Run pipeline</button>
+            <button id="ci-stop" class="ci-stop hidden">■ Stop</button>
           </div>
-          <ol id="ci-timeline" class="ci-timeline"></ol>
-          <div id="ci-log" class="log ci-log"></div>
+          <div class="ci-progress"><div id="ci-progress-bar"></div></div>
+          <div id="ci-graph" class="ci-graph"></div>
+          <div id="ci-result" class="ci-result hidden"></div>
+          <div class="ci-logbox">
+            <div class="ci-logbar">
+              <span class="ci-label">Console</span>
+              <div class="seg" id="ci-filter">
+                <button data-filter="all" class="on">All</button>
+                <button data-filter="error">Errors <b id="ci-err-count">0</b></button>
+                <button data-filter="cmd">Commands</button>
+              </div>
+              <span class="spacer"></span>
+              <label class="switch-row small"><input type="checkbox" id="ci-autoscroll" class="switch" checked /> Auto-scroll</label>
+              <button id="ci-copy" class="ghost small" title="Copy log">⧉ Copy</button>
+              <button id="ci-open-log" class="ghost small hidden">📄 pipeline.log</button>
+            </div>
+            <div id="ci-log" class="ci-log f-all"><div class="ci-log-empty">Press <b>Run pipeline</b> to start. Build output appears here.</div></div>
+          </div>
         </section>
       </div>
     </div>

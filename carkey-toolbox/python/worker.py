@@ -253,7 +253,8 @@ def _cicd_thread(ctx: toolkit.RunContext, p: dict) -> None:
     from cicd import pipeline
     payload: dict[str, Any] = {"run_id": ctx.run_id, "ok": False, "cancelled": False}
     try:
-        runner = pipeline.Runner(ctx, notify, p["pipeline"], p.get("params") or {}, p.get("skip") or [])
+        runner = pipeline.Runner(ctx, notify, p["pipeline"], p.get("params") or {}, p.get("skip") or [],
+                                 p.get("settings"))
         payload.update(ok=True, result=runner.run())
     except toolkit.Cancelled:
         payload.update(cancelled=True, error="Stopped by user")
@@ -263,6 +264,17 @@ def _cicd_thread(ctx: toolkit.RunContext, p: dict) -> None:
         with _runs_lock:
             _runs.pop(ctx.run_id, None)
         notify("run.finished", payload)
+
+
+def m_cicd_preview(p: dict) -> dict:
+    from cicd import pipeline
+    return pipeline.preview(p["pipeline"], p.get("params") or {}, p.get("settings") or {})
+
+
+def m_cicd_save_settings(p: dict) -> dict:
+    from cicd import pipeline
+    pipeline.save_settings(p["pipeline"], p.get("settings") or {})
+    return {"ok": True}
 
 
 def m_cicd_run(p: dict) -> dict:
@@ -287,6 +299,8 @@ METHODS = {
     "lab_action": m_lab_action,
     "cicd_list": m_cicd_list,
     "cicd_run": m_cicd_run,
+    "cicd_preview": m_cicd_preview,
+    "cicd_save_settings": m_cicd_save_settings,
 }
 
 # Methods that may block (talking to instruments) run on a thread pool so the

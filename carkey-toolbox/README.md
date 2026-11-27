@@ -143,7 +143,17 @@ A step fails when any of these happens:
 
 The last check catches headless builds that exit with code 0 even though compilation failed.
 
-Configure per build PC in `python/cicd/cicd_config.json` (copy the example, git-ignored).
+**Paths** (left panel) – source code root, APP/FBL project folders and names, CI workspace, release
+target folder and release folder name pattern, CCS / SDK install folders and the BMW tool. Each field has
+a 📁 browse button and a live ✓ / ✗ check, and the resolved release folder is previewed before running.
+Values are saved per machine in `python/cicd/cicd_settings.json` (git-ignored); defaults come from the
+pipeline's `settings` in the config.
+
+The main panel shows a stage graph (running step spins, ✓ / ✕ badges, duration and ETA from previous
+runs), a progress bar, a result card (artifacts grouped by APP / FBL / SIGNED / logs, click to open; on
+failure the failed step and the first error lines) and a console with *All / Errors / Commands* filters.
+
+Pipeline definitions live in `python/cicd/cicd_config.json` (copy the example, git-ignored).
 Before the first real run, set these to match your machine:
 - `CCS_ROOT` and `SDK_ROOT`
 - `SOURCE_ROOT`, the project names and directories

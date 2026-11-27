@@ -65,18 +65,137 @@ def _params(p: dict[str, Any]) -> list[Param]:
     return [Param(**x) for x in p.get("params", [])]
 
 
+# Per-machine path settings edited in the UI (git-ignored).
+SETTINGS_PATH = HERE / "cicd_settings.json"
+_settings_lock = threading.Lock()
+
+
+def load_settings() -> dict[str, dict[str, str]]:
+    path = Path(os.environ.get("CARKEY_CICD_SETTINGS", SETTINGS_PATH))
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+
+
+def save_settings(pipeline_id: str, values: dict[str, str]) -> None:
+    path = Path(os.environ.get("CARKEY_CICD_SETTINGS", SETTINGS_PATH))
+    with _settings_lock:
+        data = load_settings()
+        data[pipeline_id] = {k: str(v) for k, v in values.items()}
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(path)
+
+
+def _settings_spec(p: dict[str, Any]) -> list[dict[str, Any]]:
+    """Path/name settings shown in the UI "Paths" section: name, type (dir|file|string), label,
+    default, help, must_exist (default true for dir/file)."""
+    out = []
+    for s in p.get("settings", []):
+        typ = s.get("type", "dir")
+        out.append({"name": s["name"], "type": typ, "label": s.get("label", s["name"]),
+                    "default": s.get("default", ""), "help": s.get("help", ""),
+                    "must_exist": s.get("must_exist", typ in {"dir", "file"})})
+    return out
+
+
+STEP_ICONS = {"clean_dir": "🧹", "collect": "📦"}
+
+
+def _step_icon(s: dict[str, Any]) -> str:
+    if s.get("icon"):
+        return s["icon"]
+    sid = s["id"].lower()
+    for key, icon in (("import", "📥"), ("build", "🔨"), ("sign", "🔏"), ("hex", "🧬"), ("test", "🧪"),
+                      ("git", "🌿"), ("flash", "⚡")):
+        if key in sid:
+            return icon
+    return STEP_ICONS.get(s.get("type", "command"), "⚙️")
+
+
 def list_pipelines() -> dict[str, Any]:
     cfg = load_config()
+    saved = load_settings()
     out = []
     for p in cfg.get("pipelines", []):
+        values = saved.get(p["id"], {})
+        settings = [{**s, "value": values.get(s["name"], s["default"])} for s in _settings_spec(p)]
         out.append({
             "id": p["id"], "name": p.get("name", p["id"]), "description": p.get("description", ""),
             "params": [asdict(x) for x in _params(p)],
+            "settings": settings,
             "steps": [{"id": s["id"], "name": s.get("name", s["id"]), "type": s.get("type", "command"),
-                       "enabled": s.get("enabled", True)} for s in p.get("steps", [])],
+                       "enabled": s.get("enabled", True), "icon": _step_icon(s)} for s in p.get("steps", [])],
             "open_release_dir": p.get("open_release_dir", True),
         })
-    return {"config": str(config_path()), "pipelines": out}
+    return {"config": str(config_path()), "settings_file": str(SETTINGS_PATH), "pipelines": out}
+
+
+def resolve_vars(cfg: dict[str, Any], pipe: dict[str, Any], raw_params: dict[str, Any],
+                 settings: dict[str, str]) -> dict[str, str]:
+    """Resolve all ${VAR}s. Order (later wins): built-ins, global vars, pipeline vars,
+    path settings (saved value or default), UI parameters."""
+    now = time.localtime()
+    raw: dict[str, Any] = {
+        "PYTHON": sys.executable,
+        "TOOLBOX_PY": str(HERE.parent),
+        "TIMESTAMP": time.strftime("%Y%m%d_%H%M%S", now),
+        "DATE": time.strftime("%Y-%m-%d", now),
+        "PIPELINE": pipe["id"],
+        "HOST": socket.gethostname(),
+        "USER": getpass.getuser(),
+    }
+    raw.update(cfg.get("vars", {}))
+    raw.update(pipe.get("vars", {}))
+    for s in _settings_spec(pipe):
+        v = settings.get(s["name"])
+        raw[s["name"]] = v if v not in (None, "") else s["default"]
+    for p in _params(pipe):
+        v = p.coerce(raw_params.get(p.name))
+        raw[p.name] = ("true" if v else "false") if isinstance(v, bool) else ("" if v is None else str(v))
+
+    resolved: dict[str, str] = {}
+
+    def resolve(name: str, stack: tuple[str, ...]) -> str:
+        if name in resolved:
+            return resolved[name]
+        if name in stack:
+            raise PipelineError(f"variable cycle: {' -> '.join(stack + (name,))}")
+        if name not in raw:
+            raise PipelineError(f"undefined variable ${{{name}}}")
+        val = VAR_RE.sub(lambda m: resolve(m.group(1), stack + (name,)), str(raw[name]))
+        if val.startswith("~"):
+            val = os.path.expanduser(val)
+        resolved[name] = val
+        return val
+
+    for k in raw:
+        resolve(k, ())
+    if "RELEASE_DIR" not in resolved:
+        raise PipelineError("pipeline must define RELEASE_DIR")
+    return resolved
+
+
+def preview(pipeline_id: str, params: dict[str, Any], settings: dict[str, str]) -> dict[str, Any]:
+    """Resolve paths for the UI without running anything, and check which ones exist."""
+    cfg = load_config()
+    pipe = next((p for p in cfg.get("pipelines", []) if p["id"] == pipeline_id), None)
+    if pipe is None:
+        raise PipelineError(f"unknown pipeline '{pipeline_id}'")
+    try:
+        v = resolve_vars(cfg, pipe, params, settings)
+    except Exception as exc:
+        return {"error": str(exc), "vars": {}, "checks": {}}
+    checks = {}
+    for s in _settings_spec(pipe):
+        path = v.get(s["name"], "")
+        if s["type"] == "string":
+            continue
+        exists = os.path.isdir(path) if s["type"] == "dir" else os.path.isfile(path)
+        checks[s["name"]] = {"path": path, "exists": exists, "must_exist": s["must_exist"]}
+    shown = {k: v[k] for k in v if k == "RELEASE_DIR" or k.endswith("_OUT_DIR")}
+    return {"error": None, "vars": shown, "checks": checks}
 
 
 # ---------------------------------------------------------------------------
@@ -84,7 +203,7 @@ def list_pipelines() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 class Runner:
     def __init__(self, ctx: RunContext, emit: Callable[[str, dict], None], pipeline_id: str,
-                 params: dict[str, Any], skip: list[str]):
+                 params: dict[str, Any], skip: list[str], settings: dict[str, str] | None = None):
         self.ctx = ctx
         self.emit = emit
         self.cfg = load_config()
@@ -92,47 +211,12 @@ class Runner:
         if self.pipe is None:
             raise PipelineError(f"unknown pipeline '{pipeline_id}'")
         self.skip = set(skip or [])
+        # Steps disabled in the config but switched on in the UI for this run.
+        self.force = set(params.pop("__force", None) or []) if isinstance(params, dict) else set()
         self.logfile: Any = None
-        self.vars = self._resolve_vars(params)
-
-    # ---- variables ----
-    def _resolve_vars(self, raw_params: dict[str, Any]) -> dict[str, str]:
-        now = time.localtime()
-        raw: dict[str, Any] = {
-            "PYTHON": sys.executable,
-            "TOOLBOX_PY": str(HERE.parent),
-            "TIMESTAMP": time.strftime("%Y%m%d_%H%M%S", now),
-            "DATE": time.strftime("%Y-%m-%d", now),
-            "PIPELINE": self.pipe["id"],
-            "HOST": socket.gethostname(),
-            "USER": getpass.getuser(),
-        }
-        raw.update(self.cfg.get("vars", {}))
-        raw.update(self.pipe.get("vars", {}))
-        for p in _params(self.pipe):
-            v = p.coerce(raw_params.get(p.name))
-            raw[p.name] = ("true" if v else "false") if isinstance(v, bool) else ("" if v is None else str(v))
-
-        resolved: dict[str, str] = {}
-
-        def resolve(name: str, stack: tuple[str, ...]) -> str:
-            if name in resolved:
-                return resolved[name]
-            if name in stack:
-                raise PipelineError(f"variable cycle: {' -> '.join(stack + (name,))}")
-            if name not in raw:
-                raise PipelineError(f"undefined variable ${{{name}}}")
-            val = VAR_RE.sub(lambda m: resolve(m.group(1), stack + (name,)), str(raw[name]))
-            if val.startswith("~"):
-                val = os.path.expanduser(val)
-            resolved[name] = val
-            return val
-
-        for k in raw:
-            resolve(k, ())
-        if "RELEASE_DIR" not in resolved:
-            raise PipelineError("pipeline must define RELEASE_DIR")
-        return resolved
+        if settings is None:
+            settings = load_settings().get(pipeline_id, {})
+        self.vars = resolve_vars(self.cfg, self.pipe, params, settings)
 
     def x(self, s: Any) -> str:
         """Expand ${VAR} in a string."""
@@ -180,7 +264,7 @@ class Runner:
         try:
             for i, step in enumerate(steps):
                 self.ctx.check_cancel()
-                enabled = step.get("enabled", True) and step["id"] not in self.skip
+                enabled = (step.get("enabled", True) or step["id"] in self.force) and step["id"] not in self.skip
                 if not enabled:
                     self.step_event(i, step, "skipped")
                     results.append({"id": step["id"], "status": "skipped"})
@@ -208,11 +292,19 @@ class Runner:
                 results.append({"id": step["id"], "status": "ok", "duration_s": dur})
             self.ctx.progress(1.0, "done")
             self.log("Pipeline finished successfully", "sys")
-            return {"release_dir": str(release), "steps": results,
+            return {"release_dir": str(release), "steps": results, "artifacts": self.artifacts(release),
                     "open_release_dir": self.pipe.get("open_release_dir", True)}
         finally:
             self.logfile.close()
             self.logfile = None
+
+    @staticmethod
+    def artifacts(release: Path) -> list[dict[str, Any]]:
+        out = []
+        for f in sorted(release.rglob("*")):
+            if f.is_file():
+                out.append({"rel": f.relative_to(release).as_posix(), "path": str(f), "size": f.stat().st_size})
+        return out[:300]
 
     # ---- steps ----
     def run_step(self, step: dict) -> str:
