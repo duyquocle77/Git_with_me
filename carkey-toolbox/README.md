@@ -120,8 +120,8 @@ Default pipeline `cc2745_release` (TI CC2745R10, SimpleLink Low Power F3 SDK 9.2
 | # | Step | How |
 |---|---|---|
 | 1 | Fresh CCS workspace | deletes and recreates `${WORKSPACE}` |
-| 2-3 | Import FBL / APP projects | `ccs-server-cli.bat ... -application com.ti.ccstudio.apps.projectImport -ccs.location <project>` |
-| 4-5 | Build FBL / APP | `... -application com.ti.ccstudio.apps.projectBuild -ccs.projects <name> -ccs.configuration <cfg> -ccs.buildType full` |
+| 2-3 | Import FBL / APP projects | `ccs-server-cli.bat ... -application com.ti.ccs.apps.importProject -ccs.location <project>` |
+| 4-5 | Build FBL / APP | `... -application com.ti.ccs.apps.buildProject -ccs.projects <name> -ccs.configuration <cfg> -ccs.buildType full` |
 | 6 | (optional) hex | `tiarmhex --intel` if the projects don't already produce `.hex` in a post-build step |
 | 7 | Collect | copies `*.hex *.map *.out` to `<release>/APP` and `<release>/FBL` |
 | 8 | BMW create & sign | runs the OEM tool, expects `<release>/SIGNED/*.bin` |

@@ -2,7 +2,9 @@
   "_comment": [
     "Copy to cicd_config.json on the build PC (git-ignored) and adjust paths.",
     "Use ${VAR} for variables. Forward slashes work for paths; keep paths with spaces in double quotes.",
-    "The CCS workspace used here must NOT be open in the CCS IDE at the same time (workspace lock)."
+    "The CCS workspace used here must NOT be open in the CCS IDE at the same time (workspace lock).",
+    "CCS 20.x headless syntax: ccs-server-cli.bat -noSplash -workspace <ws> -application com.ti.ccs.apps.importProject|buildProject ...",
+    "Run '<CCS_CLI> -noSplash -workspace <ws> -application com.ti.ccs.apps.buildProject -ccs.help' to list the options of your exact CCS version."
   ],
 
   "vars": {
@@ -52,26 +54,26 @@
         },
         {
           "id": "import_fbl", "name": "Import FBL project", "type": "command",
-          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccstudio.apps.projectImport -ccs.location \"${FBL_PROJECT_DIR}\"",
+          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccs.apps.importProject -ccs.location \"${FBL_PROJECT_DIR}\"",
           "log": "import.log", "timeout_s": 600,
           "fail_patterns": ["!ERROR", "(?i)import failed", "(?i)project .* does not exist"]
         },
         {
           "id": "import_app", "name": "Import APP project", "type": "command",
-          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccstudio.apps.projectImport -ccs.location \"${APP_PROJECT_DIR}\"",
+          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccs.apps.importProject -ccs.location \"${APP_PROJECT_DIR}\"",
           "log": "import.log", "timeout_s": 600,
           "fail_patterns": ["!ERROR", "(?i)import failed", "(?i)project .* does not exist"]
         },
         {
           "id": "build_fbl", "name": "Build FBL", "type": "command",
-          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccstudio.apps.projectBuild -ccs.projects ${FBL_PROJECT} -ccs.configuration ${CONFIG} -ccs.buildType ${BUILD_TYPE}",
+          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccs.apps.buildProject -ccs.projects ${FBL_PROJECT} -ccs.configuration ${CONFIG} -ccs.buildType ${BUILD_TYPE}",
           "log": "build_fbl.log", "timeout_s": 1800,
           "fail_patterns": ["\\*\\*\\*\\* Build Failed", "gmake(\\[\\d+\\])?: \\*\\*\\*", "\\berror #\\d+", "\\.c:\\d+:\\d+: error:"],
           "expect_files": ["${FBL_OUT_DIR}/*.hex", "${FBL_OUT_DIR}/*.out"]
         },
         {
           "id": "build_app", "name": "Build APP", "type": "command",
-          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccstudio.apps.projectBuild -ccs.projects ${APP_PROJECT} -ccs.configuration ${CONFIG} -ccs.buildType ${BUILD_TYPE}",
+          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccs.apps.buildProject -ccs.projects ${APP_PROJECT} -ccs.configuration ${CONFIG} -ccs.buildType ${BUILD_TYPE}",
           "log": "build_app.log", "timeout_s": 1800,
           "fail_patterns": ["\\*\\*\\*\\* Build Failed", "gmake(\\[\\d+\\])?: \\*\\*\\*", "\\berror #\\d+", "\\.c:\\d+:\\d+: error:"],
           "expect_files": ["${APP_OUT_DIR}/*.hex", "${APP_OUT_DIR}/*.out"]
