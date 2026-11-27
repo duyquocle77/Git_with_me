@@ -84,6 +84,29 @@ Have a script/CLI you don't want to touch? See `tools/legacy_script.py` (runs a 
 Tools outside the repo (e.g. a shared team folder): set `CARKEY_TOOLS_PATH=/path/a:/path/b`
 (use `;` on Windows).
 
+## Lab Control tab
+
+The **🔌 Lab Control** tab shows one card per lab instrument: live status (polled every 2.5 s),
+grouped action buttons and a per-device log. Files produced by actions (captures, screenshots,
+logcat) get an **open** link.
+
+Devices are configured per lab PC in `python/lab/lab_config.json` (copy
+`lab_config.example.json`; the local file is git-ignored). Edit it and click **⟳ Reload config**.
+
+| Driver | What it controls | Needs |
+|---|---|---|
+| `power_supply` | Output ON/OFF, power cycle, voltage/current setpoint, live V/I readback | SCPI over `tcp` / `serial` / `visa`, or `mock`. Vendor dialect via `preset` (`scpi`, `rigol_dp800`, `keysight_e36300`) or per-command overrides in `commands` |
+| `saleae_logic` | Connect, start / stop & save, timed capture, optional CSV export | Logic 2 with automation enabled; `pip install logic2-automation` |
+| `ellisys` | Start / stop recording, save trace | `backend: "command"` with your start/stop/save commands, or `mock` |
+| `android_adb` | Wake/sleep/unlock, screenshot, BT / NFC / airplane on/off, BT snoop log mode, logcat to file, launch / force-stop app, reboot, any `adb shell` command | Android platform-tools (`adb`) on PATH or `"adb"` path in config |
+
+Adding a new instrument = one Python class in `python/lab/` (see `base.py`), add its module to
+`DRIVER_MODULES` in `manager.py`, then reference its `driver` name in the config. The UI is generated
+from the `@action` metadata, so no frontend changes are needed.
+
+Device actions run on a thread pool in the worker and each instrument has its own lock, so a
+long capture never blocks the UI or other instruments.
+
 ## Environment variables
 
 | Variable | Meaning |
@@ -91,6 +114,7 @@ Tools outside the repo (e.g. a shared team folder): set `CARKEY_TOOLS_PATH=/path
 | `CARKEY_PYTHON` | Specific interpreter path (default: `python/.venv`, then `python3`/`python`/`py` on PATH) |
 | `CARKEY_PYTHON_DIR` | Directory containing `worker.py` (default: next to the executable, or `./python`) |
 | `CARKEY_TOOLS_PATH` | Extra tool directories, separated by `:` (`;` on Windows) |
+| `CARKEY_LAB_CONFIG` | Path to the lab config (default: `python/lab/lab_config.json`, else the example) |
 
 ## Sharing with colleagues
 
@@ -106,8 +130,9 @@ so users don't need to install anything.
 
 ## Protocol (reference)
 
-Go → Python: `ping`, `list_tools`, `reload_tools`, `run_tool {run_id, tool, params}`, `cancel {run_id}`.
-Python → Go (notifications): `run.log`, `run.progress`, `run.finished`, `worker.log`.
+Go → Python: `ping`, `list_tools`, `reload_tools`, `run_tool {run_id, tool, params}`, `cancel {run_id}`,
+`lab_list`, `lab_reload`, `lab_status {ids}`, `lab_action {device, action, params}`.
+Python → Go (notifications): `run.log`, `run.progress`, `run.finished`, `worker.log`, `lab.log`.
 Go forwards these notifications unchanged as Wails events to the frontend (plus `run.started`, `worker.status`).
 
 ## Roadmap

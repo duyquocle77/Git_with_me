@@ -58,3 +58,49 @@ form.params label.checkbox input { width: auto; }
 details.result summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 details.result pre { max-height: 220px; overflow: auto; background: #111317; border: 1px solid var(--border); border-radius: 6px; padding: 8px; font: 12px var(--mono); }
 .empty { color: var(--muted); padding: 20px; }
+
+/* ---------- tabs ---------- */
+#tabs { display: flex; gap: 2px; padding: 8px 12px 0; background: var(--panel); border-bottom: 1px solid var(--border); }
+.tab { border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; background: transparent; color: var(--muted); padding: 7px 16px; }
+.tab.active { background: var(--bg); color: var(--text); border-color: var(--border); margin-bottom: -1px; }
+.view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.hidden { display: none !important; }
+.muted { color: var(--muted); font-size: 12px; }
+
+/* ---------- lab ---------- */
+#view-lab { overflow: auto; padding: 14px 16px; gap: 12px; }
+.lab-header { display: flex; align-items: center; gap: 12px; }
+.lab-header .muted { flex: 1; font-family: var(--mono); }
+.poll { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.poll input { width: auto; }
+#lab-errors .err { color: var(--err); font-size: 12px; font-family: var(--mono); }
+#lab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; align-items: start; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
+.card-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.card-head h3 { margin: 0; font-size: 15px; flex: 1; }
+.card-head .sub { color: var(--muted); font-size: 11px; font-weight: 400; display: block; }
+.chip { font-size: 11px; padding: 2px 9px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); white-space: nowrap; }
+.chip::before { content: "● "; color: var(--muted); }
+.chip.ok::before { color: var(--ok); } .chip.bad::before { color: var(--err); } .chip.busy::before { color: var(--warn); }
+.chip.on { background: rgba(63,191,127,.15); border-color: var(--ok); }
+.fields { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; padding: 8px 14px; font-size: 12px; }
+.fields .k { color: var(--muted); } .fields .v { font-family: var(--mono); word-break: break-all; }
+.card .error { color: var(--err); font-size: 12px; padding: 0 14px 6px; font-family: var(--mono); }
+.groups { padding: 4px 14px 10px; display: flex; flex-direction: column; gap: 8px; }
+.group { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; }
+.group-label { width: 100%; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin-top: 4px; }
+.act { display: flex; align-items: flex-end; gap: 6px; flex-wrap: wrap; }
+.act.with-params { width: 100%; background: var(--panel-2); border-radius: 8px; padding: 8px; }
+.act label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted); min-width: 110px; flex: 1; }
+.act label.checkbox { flex-direction: row; align-items: center; gap: 6px; flex: 0; white-space: nowrap; }
+.act label.checkbox input { width: auto; }
+.act input, .act select { padding: 4px 6px; font-size: 12px; }
+button.success { background: var(--ok); border-color: var(--ok); color: #fff; font-weight: 600; }
+button.running { opacity: .7; cursor: progress; }
+.card-log { border-top: 1px solid var(--border); background: #111317; height: 120px; overflow: auto; padding: 6px 10px; font: 11px/1.45 var(--mono); white-space: pre-wrap; }
+.card-log .sys { color: var(--muted); } .card-log .warn { color: var(--warn); } .card-log .error { color: var(--err); } .card-log .ok { color: var(--ok); }
+.card-log a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+#modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 10; }
+.modal-box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; min-width: 320px; }
+.modal-box .actions { justify-content: flex-end; }

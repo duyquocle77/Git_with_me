@@ -15,6 +15,9 @@ Notifications (Python -> Go, no "id"):
     run.progress {run_id, value, message}
     run.finished {run_id, ok, result?, error?, cancelled}
     worker.log   {level, message}
+    lab.log      {device, level, message}
+
+Lab Control methods: lab_list, lab_reload, lab_status {ids?}, lab_action {device, action, params}
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ import platform
 import sys
 import threading
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -196,13 +200,62 @@ def m_cancel(p: dict) -> dict:
     return {"ok": ctx is not None}
 
 
+# ---------------------------------------------------------------------------
+# Lab Control (instrument drivers in python/lab/)
+# ---------------------------------------------------------------------------
+_lab = None
+_lab_init = threading.Lock()
+
+
+def lab():
+    global _lab
+    with _lab_init:
+        if _lab is not None:
+            return _lab
+        from lab.manager import LabManager
+        mgr = LabManager(notify)
+        mgr.load()
+        _lab = mgr
+        return _lab
+
+
+def m_lab_list(_: dict) -> dict:
+    return lab().list()
+
+
+def m_lab_reload(_: dict) -> dict:
+    lab().load()
+    return lab().list()
+
+
+def m_lab_status(p: dict) -> dict:
+    ids = p.get("ids") or list(lab().devices)
+    return {i: lab().get(i).safe_status() for i in ids if i in lab().devices}
+
+
+def m_lab_action(p: dict):
+    dev = lab().get(p["device"])
+    dev.log(f"> {p['action']}", "sys")
+    return dev.run_action(p["action"], p.get("params") or {})
+
+
 METHODS = {
     "ping": m_ping,
     "list_tools": m_list_tools,
     "reload_tools": m_reload_tools,
     "run_tool": m_run_tool,
     "cancel": m_cancel,
+    "lab_list": m_lab_list,
+    "lab_reload": m_lab_reload,
+    "lab_status": m_lab_status,
+    "lab_action": m_lab_action,
 }
+
+# Methods that may block (talking to instruments) run on a thread pool so the
+# request loop stays responsive. Responses can therefore arrive out of order,
+# which JSON-RPC (and pybridge) handle via the request id.
+THREADED = {"lab_status", "lab_action", "lab_reload"}
+_pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="rpc")
 
 
 def handle(line: str) -> None:
@@ -216,8 +269,15 @@ def handle(line: str) -> None:
     if fn is None:
         _send({"jsonrpc": "2.0", "id": rid, "error": {"code": -32601, "message": f"method not found: {req.get('method')}"}})
         return
+    if req.get("method") in THREADED:
+        _pool.submit(_execute, fn, rid, req.get("params") or {})
+    else:
+        _execute(fn, rid, req.get("params") or {})
+
+
+def _execute(fn, rid, params: dict) -> None:
     try:
-        result = fn(req.get("params") or {})
+        result = fn(params)
         _send({"jsonrpc": "2.0", "id": rid, "result": result})
     except Exception as exc:
         _send({"jsonrpc": "2.0", "id": rid, "error": {"code": -32000, "message": f"{type(exc).__name__}: {exc}",
@@ -236,6 +296,8 @@ def main() -> None:
     with _runs_lock:
         for ctx in _runs.values():
             ctx.request_cancel()
+    if _lab is not None:
+        _lab.close()
 
 
 if __name__ == "__main__":

@@ -3,3 +3,4 @@ frontend/wailsjs/
 python/.venv/
 __pycache__/
 *.pyc
+python/lab/lab_config.json

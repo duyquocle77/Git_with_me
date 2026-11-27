@@ -110,3 +110,31 @@ func asRPC(err error, target **RPCError) bool {
 	}
 	return ok
 }
+
+func TestLabMockPowerSupply(t *testing.T) {
+	b := startWorker(t, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var list struct {
+		Devices []struct{ ID string } `json:"devices"`
+	}
+	if err := b.Call(ctx, "lab_list", nil, &list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list.Devices) == 0 {
+		t.Fatal("no lab devices")
+	}
+	if err := b.Call(ctx, "lab_action", map[string]any{"device": "psu1", "action": "power_on"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	var st map[string]struct {
+		On bool `json:"on"`
+	}
+	if err := b.Call(ctx, "lab_status", map[string]any{"ids": []string{"psu1"}}, &st); err != nil {
+		t.Fatal(err)
+	}
+	if !st["psu1"].On {
+		t.Fatalf("expected psu1 output on, got %+v", st)
+	}
+}
