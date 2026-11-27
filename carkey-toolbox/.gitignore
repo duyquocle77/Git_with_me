@@ -1,0 +1,5 @@
+build/bin/
+frontend/wailsjs/
+python/.venv/
+__pycache__/
+*.pyc
