@@ -3,6 +3,7 @@ package pybridge
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -136,5 +137,54 @@ func TestLabMockPowerSupply(t *testing.T) {
 	}
 	if !st["psu1"].On {
 		t.Fatalf("expected psu1 output on, got %+v", st)
+	}
+}
+
+func runDemoPipeline(t *testing.T, cancelAfter time.Duration) map[string]any {
+	finished := make(chan map[string]any, 1)
+	b := startWorker(t, func(n Notification) {
+		if n.Method == "run.finished" {
+			var m map[string]any
+			json.Unmarshal(n.Params, &m)
+			finished <- m
+		}
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	t.Setenv("HOME", t.TempDir()) // demo pipeline writes under ~/CarKeyToolbox
+	if err := b.Call(ctx, "cicd_run", map[string]any{"run_id": "ci-test", "pipeline": "demo",
+		"params": map[string]any{"VERSION": "9.9.9"}}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if cancelAfter > 0 {
+		time.Sleep(cancelAfter)
+		b.Call(ctx, "cancel", map[string]any{"run_id": "ci-test"}, nil)
+	}
+	select {
+	case m := <-finished:
+		return m
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for pipeline")
+	}
+	return nil
+}
+
+func TestCicdDemoPipeline(t *testing.T) {
+	m := runDemoPipeline(t, 0)
+	if m["ok"] != true {
+		t.Fatalf("pipeline failed: %v", m)
+	}
+	dir := m["result"].(map[string]any)["release_dir"].(string)
+	for _, f := range []string{"APP/phonekey_app.hex", "FBL/phonekey_fbl.map", "SIGNED/image_signed.bin", "logs/build_app.log", "logs/pipeline.log"} {
+		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
+			t.Errorf("missing %s: %v", f, err)
+		}
+	}
+}
+
+func TestCicdCancel(t *testing.T) {
+	m := runDemoPipeline(t, 800*time.Millisecond)
+	if m["cancelled"] != true {
+		t.Fatalf("expected cancelled, got %v", m)
 	}
 }

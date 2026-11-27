@@ -24,6 +24,7 @@
     <nav id="tabs">
       <button class="tab active" data-view="tools">🧰 Tools</button>
       <button class="tab" data-view="lab">🔌 Lab Control</button>
+      <button class="tab" data-view="cicd">🏗 CI/CD</button>
     </nav>
 
     <div id="view-tools" class="view">
@@ -49,6 +50,36 @@
       <div id="lab-errors"></div>
       <div id="lab-grid"></div>
     </div>
+    <div id="view-cicd" class="view hidden">
+      <div class="ci-layout">
+        <aside class="ci-panel">
+          <label class="ci-field">Pipeline <select id="ci-pipeline"></select></label>
+          <p id="ci-desc" class="muted"></p>
+          <form id="ci-params" class="ci-params"></form>
+          <div class="ci-sub">Steps</div>
+          <div id="ci-steps-select"></div>
+          <label class="poll"><input type="checkbox" id="ci-open" checked /> Open release folder when done</label>
+          <div class="actions">
+            <button id="ci-run" class="primary">▶ Run pipeline</button>
+            <button id="ci-stop" class="danger hidden">■ Stop</button>
+          </div>
+          <div class="ci-sub">History</div>
+          <div id="ci-history" class="ci-history"></div>
+          <div class="ci-foot"><span id="ci-config" class="muted"></span>
+            <button id="ci-reload" class="ghost" title="Re-read cicd_config.json">⟳</button></div>
+        </aside>
+        <section class="ci-main">
+          <div class="ci-status">
+            <span id="ci-state" class="chip">idle</span>
+            <span id="ci-release" class="muted"></span>
+            <button id="ci-open-dir" class="hidden">📂 Open release folder</button>
+            <button id="ci-open-log" class="ghost hidden">📄 pipeline.log</button>
+          </div>
+          <ol id="ci-timeline" class="ci-timeline"></ol>
+          <div id="ci-log" class="log ci-log"></div>
+        </section>
+      </div>
+    </div>
   </main>
 
   <div id="modal" class="hidden"><div class="modal-box"><p id="modal-text"></p>
@@ -56,5 +87,6 @@
 
   <script src="app.js"></script>
   <script src="lab.js"></script>
+  <script src="cicd.js"></script>
 </body>
 </html>

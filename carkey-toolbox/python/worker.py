@@ -17,6 +17,8 @@ Notifications (Python -> Go, no "id"):
     worker.log   {level, message}
     lab.log      {device, level, message}
 
+CI/CD: cicd_list, cicd_run {run_id, pipeline, params, skip}; notifications cicd.info, cicd.step
+(plus run.log / run.progress / run.finished; cancel with "cancel").
 Lab Control methods: lab_list, lab_reload, lab_status {ids?}, lab_action {device, action, params}
 """
 
@@ -239,6 +241,40 @@ def m_lab_action(p: dict):
     return dev.run_action(p["action"], p.get("params") or {})
 
 
+# ---------------------------------------------------------------------------
+# CI/CD pipelines (python/cicd/)
+# ---------------------------------------------------------------------------
+def m_cicd_list(_: dict) -> dict:
+    from cicd import pipeline
+    return pipeline.list_pipelines()
+
+
+def _cicd_thread(ctx: toolkit.RunContext, p: dict) -> None:
+    from cicd import pipeline
+    payload: dict[str, Any] = {"run_id": ctx.run_id, "ok": False, "cancelled": False}
+    try:
+        runner = pipeline.Runner(ctx, notify, p["pipeline"], p.get("params") or {}, p.get("skip") or [])
+        payload.update(ok=True, result=runner.run())
+    except toolkit.Cancelled:
+        payload.update(cancelled=True, error="Stopped by user")
+    except Exception as exc:
+        payload.update(error=f"{exc}" if isinstance(exc, pipeline.PipelineError) else f"{type(exc).__name__}: {exc}")
+    finally:
+        with _runs_lock:
+            _runs.pop(ctx.run_id, None)
+        notify("run.finished", payload)
+
+
+def m_cicd_run(p: dict) -> dict:
+    ctx = toolkit.RunContext(p["run_id"], notify)
+    with _runs_lock:
+        if any(r.startswith("ci-") for r in _runs):
+            raise RuntimeError("a pipeline is already running")
+        _runs[ctx.run_id] = ctx
+    threading.Thread(target=_cicd_thread, args=(ctx, p), daemon=True, name=f"cicd-{ctx.run_id}").start()
+    return {"run_id": ctx.run_id}
+
+
 METHODS = {
     "ping": m_ping,
     "list_tools": m_list_tools,
@@ -249,6 +285,8 @@ METHODS = {
     "lab_reload": m_lab_reload,
     "lab_status": m_lab_status,
     "lab_action": m_lab_action,
+    "cicd_list": m_cicd_list,
+    "cicd_run": m_cicd_run,
 }
 
 # Methods that may block (talking to instruments) run on a thread pool so the

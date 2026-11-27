@@ -17,11 +17,11 @@ function labSave() { try { localStorage.setItem("labParams", JSON.stringify(lab.
 // ---------------- tabs ----------------
 function showView(name) {
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === name));
-  $("#view-tools").classList.toggle("hidden", name !== "tools");
-  $("#view-lab").classList.toggle("hidden", name !== "lab");
+  document.querySelectorAll(".view").forEach((v) => v.classList.toggle("hidden", v.id !== `view-${name}`));
   $("#tools-sidebar").classList.toggle("hidden", name !== "tools");
   try { localStorage.setItem("view", name); } catch {}
   if (name === "lab") { if (!lab.devices.length) labLoad(); startPolling(); } else stopPolling();
+  if (name === "cicd" && window.cicdShow) window.cicdShow();
 }
 
 // ---------------- data ----------------

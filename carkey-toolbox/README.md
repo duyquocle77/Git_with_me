@@ -107,6 +107,56 @@ from the `@action` metadata, so no frontend changes are needed.
 Device actions run on a thread pool in the worker and each instrument has its own lock, so a
 long capture never blocks the UI or other instruments.
 
+## CI/CD tab
+
+The **🏗 CI/CD** tab runs a local release pipeline on the build PC. On Windows, every command is
+executed through `cmd.exe /d /s /c` (no console window pops up). Pick a pipeline, fill in the
+parameters (version, build configuration, build type), untick steps you want to skip, and press **Run pipeline**.
+The tab shows a step timeline and the live log. **Stop** kills the whole running process tree.
+On success the release folder is opened automatically.
+
+Default pipeline `cc2745_release` (TI CC2745R10, SimpleLink Low Power F3 SDK 9.20.00.21, CCS 20.2):
+
+| # | Step | How |
+|---|---|---|
+| 1 | Fresh CCS workspace | deletes and recreates `${WORKSPACE}` |
+| 2-3 | Import FBL / APP projects | `ccs-server-cli.bat ... -application com.ti.ccstudio.apps.projectImport -ccs.location <project>` |
+| 4-5 | Build FBL / APP | `... -application com.ti.ccstudio.apps.projectBuild -ccs.projects <name> -ccs.configuration <cfg> -ccs.buildType full` |
+| 6 | (optional) hex | `tiarmhex --intel` if the projects don't already produce `.hex` in a post-build step |
+| 7 | Collect | copies `*.hex *.map *.out` to `<release>/APP` and `<release>/FBL` |
+| 8 | BMW create & sign | runs the OEM tool, expects `<release>/SIGNED/*.bin` |
+
+Release folder layout:
+
+```
+<RELEASE_ROOT>/<VERSION>_<CONFIG>_<TIMESTAMP>/
+  APP/     app .hex .map .out
+  FBL/     fbl .hex .map .out
+  SIGNED/  signed .bin from the BMW tool
+  logs/    pipeline.log, import.log, build_fbl.log, build_app.log, sign.log
+```
+
+A step fails when any of these happens:
+- the command exits with a non-zero code;
+- an output line matches one of the step's `fail_patterns`, e.g. `**** Build Failed`, `gmake: ***`, `error #`;
+- a file listed in `expect_files` was not (re)created during the step.
+
+The last check catches headless builds that exit with code 0 even though compilation failed.
+
+Configure per build PC in `python/cicd/cicd_config.json` (copy the example, git-ignored).
+Before the first real run, set these to match your machine:
+- `CCS_ROOT` and `SDK_ROOT`
+- `SOURCE_ROOT`, the project names and directories
+- `RELEASE_ROOT`
+- `BMW_TOOL` and its arguments (`TODO_ARGS`)
+
+All values support `${VAR}`. A `cmd_setup` line
+(e.g. `call "C:/path/setenv.bat"`) is prepended to every command on Windows.
+
+> The CCS workspace used by the pipeline must not be open in the CCS IDE at the same time.
+
+The `demo` pipeline runs the same flow with simulated build/sign tools, so the tab can be tried anywhere.
+
 ## Environment variables
 
 | Variable | Meaning |
@@ -114,6 +164,7 @@ long capture never blocks the UI or other instruments.
 | `CARKEY_PYTHON` | Specific interpreter path (default: `python/.venv`, then `python3`/`python`/`py` on PATH) |
 | `CARKEY_PYTHON_DIR` | Directory containing `worker.py` (default: next to the executable, or `./python`) |
 | `CARKEY_TOOLS_PATH` | Extra tool directories, separated by `:` (`;` on Windows) |
+| `CARKEY_CICD_CONFIG` | Path to the CI/CD config (default: `python/cicd/cicd_config.json`, else the example) |
 | `CARKEY_LAB_CONFIG` | Path to the lab config (default: `python/lab/lab_config.json`, else the example) |
 
 ## Sharing with colleagues
@@ -131,8 +182,10 @@ so users don't need to install anything.
 ## Protocol (reference)
 
 Go → Python: `ping`, `list_tools`, `reload_tools`, `run_tool {run_id, tool, params}`, `cancel {run_id}`,
-`lab_list`, `lab_reload`, `lab_status {ids}`, `lab_action {device, action, params}`.
-Python → Go (notifications): `run.log`, `run.progress`, `run.finished`, `worker.log`, `lab.log`.
+`lab_list`, `lab_reload`, `lab_status {ids}`, `lab_action {device, action, params}`,
+`cicd_list`, `cicd_run {run_id, pipeline, params, skip}`.
+Python → Go (notifications): `run.log`, `run.progress`, `run.finished`, `worker.log`, `lab.log`,
+`cicd.info`, `cicd.step`.
 Go forwards these notifications unchanged as Wails events to the frontend (plus `run.started`, `worker.status`).
 
 ## Roadmap

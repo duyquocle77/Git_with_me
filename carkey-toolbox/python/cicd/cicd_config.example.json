@@ -1,0 +1,146 @@
+{
+  "_comment": [
+    "Copy to cicd_config.json on the build PC (git-ignored) and adjust paths.",
+    "Use ${VAR} for variables. Forward slashes work for paths; keep paths with spaces in double quotes.",
+    "The CCS workspace used here must NOT be open in the CCS IDE at the same time (workspace lock)."
+  ],
+
+  "vars": {
+    "CCS_ROOT": "C:/ti/ccs2020",
+    "CCS_CLI": "${CCS_ROOT}/ccs/eclipse/ccs-server-cli.bat",
+    "SDK_ROOT": "C:/ti/simplelink_lowpower_f3_sdk_9_20_00_21"
+  },
+
+  "env": {},
+  "cmd_setup": "",
+
+  "pipelines": [
+    {
+      "id": "cc2745_release",
+      "name": "CC2745R10 release (APP + FBL, signed)",
+      "description": "Fresh CCS workspace -> import APP & FBL -> headless build -> collect hex/map/out/logs -> BMW create & sign bin.",
+      "open_release_dir": true,
+
+      "params": [
+        {"name": "VERSION", "type": "string", "label": "Version", "default": "1.0.0", "required": true},
+        {"name": "CONFIG", "type": "choice", "label": "Build configuration", "default": "Release", "options": ["Release", "Debug"]},
+        {"name": "BUILD_TYPE", "type": "choice", "label": "Build type", "default": "full", "options": ["full", "incremental"]}
+      ],
+
+      "vars": {
+        "SOURCE_ROOT": "D:/work/phonekey_ecu",
+        "WORKSPACE": "D:/ccs_ws/ci_cc2745",
+
+        "APP_PROJECT": "phonekey_app_CC2745R10",
+        "APP_PROJECT_DIR": "${SOURCE_ROOT}/app",
+        "APP_OUT_DIR": "${APP_PROJECT_DIR}/${CONFIG}",
+
+        "FBL_PROJECT": "phonekey_fbl_CC2745R10",
+        "FBL_PROJECT_DIR": "${SOURCE_ROOT}/fbl",
+        "FBL_OUT_DIR": "${FBL_PROJECT_DIR}/${CONFIG}",
+
+        "RELEASE_ROOT": "D:/Release/PhoneKey_CC2745",
+        "RELEASE_DIR": "${RELEASE_ROOT}/${VERSION}_${CONFIG}_${TIMESTAMP}",
+
+        "BMW_TOOL": "C:/tools/bmw/TODO_SignTool.exe"
+      },
+
+      "steps": [
+        {
+          "id": "clean_ws", "name": "Create fresh CCS workspace", "type": "clean_dir",
+          "path": "${WORKSPACE}"
+        },
+        {
+          "id": "import_fbl", "name": "Import FBL project", "type": "command",
+          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccstudio.apps.projectImport -ccs.location \"${FBL_PROJECT_DIR}\"",
+          "log": "import.log", "timeout_s": 600,
+          "fail_patterns": ["!ERROR", "(?i)import failed", "(?i)project .* does not exist"]
+        },
+        {
+          "id": "import_app", "name": "Import APP project", "type": "command",
+          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccstudio.apps.projectImport -ccs.location \"${APP_PROJECT_DIR}\"",
+          "log": "import.log", "timeout_s": 600,
+          "fail_patterns": ["!ERROR", "(?i)import failed", "(?i)project .* does not exist"]
+        },
+        {
+          "id": "build_fbl", "name": "Build FBL", "type": "command",
+          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccstudio.apps.projectBuild -ccs.projects ${FBL_PROJECT} -ccs.configuration ${CONFIG} -ccs.buildType ${BUILD_TYPE}",
+          "log": "build_fbl.log", "timeout_s": 1800,
+          "fail_patterns": ["\\*\\*\\*\\* Build Failed", "gmake(\\[\\d+\\])?: \\*\\*\\*", "\\berror #\\d+", "\\.c:\\d+:\\d+: error:"],
+          "expect_files": ["${FBL_OUT_DIR}/*.hex", "${FBL_OUT_DIR}/*.out"]
+        },
+        {
+          "id": "build_app", "name": "Build APP", "type": "command",
+          "cmd": "\"${CCS_CLI}\" -noSplash -workspace \"${WORKSPACE}\" -application com.ti.ccstudio.apps.projectBuild -ccs.projects ${APP_PROJECT} -ccs.configuration ${CONFIG} -ccs.buildType ${BUILD_TYPE}",
+          "log": "build_app.log", "timeout_s": 1800,
+          "fail_patterns": ["\\*\\*\\*\\* Build Failed", "gmake(\\[\\d+\\])?: \\*\\*\\*", "\\berror #\\d+", "\\.c:\\d+:\\d+: error:"],
+          "expect_files": ["${APP_OUT_DIR}/*.hex", "${APP_OUT_DIR}/*.out"]
+        },
+        {
+          "id": "hex", "name": "Generate hex with tiarmhex (only if the projects don't already)", "type": "command",
+          "enabled": false,
+          "cmd": [
+            "\"${CCS_ROOT}/ccs/tools/compiler/TODO_ti-cgt-armllvm/bin/tiarmhex\" --intel -o \"${FBL_OUT_DIR}/${FBL_PROJECT}.hex\" \"${FBL_OUT_DIR}/${FBL_PROJECT}.out\"",
+            "\"${CCS_ROOT}/ccs/tools/compiler/TODO_ti-cgt-armllvm/bin/tiarmhex\" --intel -o \"${APP_OUT_DIR}/${APP_PROJECT}.hex\" \"${APP_OUT_DIR}/${APP_PROJECT}.out\""
+          ],
+          "log": "hex.log"
+        },
+        {
+          "id": "collect", "name": "Copy hex / map / out to release folder", "type": "collect",
+          "items": [
+            {"from": "${APP_OUT_DIR}/*.hex", "to": "APP"},
+            {"from": "${APP_OUT_DIR}/*.map", "to": "APP"},
+            {"from": "${APP_OUT_DIR}/*.out", "to": "APP"},
+            {"from": "${FBL_OUT_DIR}/*.hex", "to": "FBL"},
+            {"from": "${FBL_OUT_DIR}/*.map", "to": "FBL"},
+            {"from": "${FBL_OUT_DIR}/*.out", "to": "FBL"}
+          ]
+        },
+        {
+          "id": "sign", "name": "BMW create & sign bin image", "type": "command",
+          "cwd": "${RELEASE_DIR}",
+          "cmd": "\"${BMW_TOOL}\" TODO_ARGS --app \"${RELEASE_DIR}/APP/${APP_PROJECT}.hex\" --fbl \"${RELEASE_DIR}/FBL/${FBL_PROJECT}.hex\" --out \"${RELEASE_DIR}/SIGNED\"",
+          "log": "sign.log", "timeout_s": 600,
+          "fail_patterns": ["(?i)\\berror\\b", "(?i)signing failed"],
+          "expect_files": ["${RELEASE_DIR}/SIGNED/*.bin"]
+        }
+      ]
+    },
+
+    {
+      "id": "demo",
+      "name": "Demo pipeline (simulated, no CCS needed)",
+      "description": "Same flow as the real pipeline, with simulated build and sign tools. Use it to try the tab.",
+      "open_release_dir": true,
+      "params": [
+        {"name": "VERSION", "type": "string", "label": "Version", "default": "0.1.0", "required": true},
+        {"name": "CONFIG", "type": "choice", "label": "Build configuration", "default": "Release", "options": ["Release", "Debug"]},
+        {"name": "FAIL_APP", "type": "bool", "label": "Simulate APP compile error", "default": false}
+      ],
+      "vars": {
+        "WORKSPACE": "~/CarKeyToolbox/demo_ws",
+        "RELEASE_DIR": "~/CarKeyToolbox/releases/${VERSION}_${CONFIG}_${TIMESTAMP}",
+        "DEMO": "${TOOLBOX_PY}/cicd/demo"
+      },
+      "steps": [
+        {"id": "clean_ws", "name": "Create fresh workspace", "type": "clean_dir", "path": "${WORKSPACE}"},
+        {"id": "import", "name": "Import APP + FBL projects", "type": "command",
+         "cmd": "\"${PYTHON}\" -c \"print('Importing fbl...'); print('Importing app...'); print('2 projects imported')\"", "log": "import.log"},
+        {"id": "build_fbl", "name": "Build FBL", "type": "command",
+         "cmd": "\"${PYTHON}\" \"${DEMO}/fake_build.py\" --project phonekey_fbl --out \"${WORKSPACE}/fbl/${CONFIG}\" --fail false",
+         "log": "build_fbl.log", "fail_patterns": ["\\*\\*\\*\\* Build Failed"], "expect_files": ["${WORKSPACE}/fbl/${CONFIG}/*.hex"]},
+        {"id": "build_app", "name": "Build APP", "type": "command",
+         "cmd": "\"${PYTHON}\" \"${DEMO}/fake_build.py\" --project phonekey_app --out \"${WORKSPACE}/app/${CONFIG}\" --fail ${FAIL_APP}",
+         "log": "build_app.log", "fail_patterns": ["\\*\\*\\*\\* Build Failed"], "expect_files": ["${WORKSPACE}/app/${CONFIG}/*.hex"]},
+        {"id": "collect", "name": "Copy hex / map / out to release folder", "type": "collect",
+         "items": [
+           {"from": "${WORKSPACE}/app/${CONFIG}/*", "to": "APP"},
+           {"from": "${WORKSPACE}/fbl/${CONFIG}/*", "to": "FBL"}
+         ]},
+        {"id": "sign", "name": "Create & sign bin (simulated)", "type": "command", "cwd": "${RELEASE_DIR}",
+         "cmd": "\"${PYTHON}\" \"${DEMO}/fake_sign.py\" --app \"${RELEASE_DIR}/APP/phonekey_app.hex\" --fbl \"${RELEASE_DIR}/FBL/phonekey_fbl.hex\" --out \"${RELEASE_DIR}/SIGNED\"",
+         "log": "sign.log", "expect_files": ["${RELEASE_DIR}/SIGNED/*.bin"]}
+      ]
+    }
+  ]
+}

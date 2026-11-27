@@ -104,3 +104,34 @@ button.running { opacity: .7; cursor: progress; }
 #modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 10; }
 .modal-box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; min-width: 320px; }
 .modal-box .actions { justify-content: flex-end; }
+
+/* ---------- CI/CD ---------- */
+.ci-layout { flex: 1; display: grid; grid-template-columns: 340px 1fr; min-height: 0; }
+.ci-panel { border-right: 1px solid var(--border); padding: 14px; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.ci-field, .ci-params label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.ci-params { display: flex; flex-direction: column; gap: 8px; }
+.ci-params label.checkbox { flex-direction: row; align-items: center; gap: 8px; }
+.ci-params label.checkbox input { width: auto; }
+#ci-desc { margin: 0; }
+.ci-sub { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin-top: 6px; }
+#ci-steps-select label { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 2px 0; }
+#ci-steps-select input { width: auto; }
+#ci-steps-select .type { color: var(--muted); font-size: 11px; margin-left: auto; }
+.ci-history { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.ci-history button { text-align: left; font-size: 12px; padding: 5px 8px; display: flex; gap: 6px; }
+.ci-history .when { color: var(--muted); margin-left: auto; }
+.ci-foot { display: flex; align-items: center; gap: 6px; margin-top: auto; }
+.ci-foot .muted { flex: 1; font-family: var(--mono); font-size: 10px; word-break: break-all; }
+.ci-main { display: flex; flex-direction: column; min-height: 0; padding: 12px 14px; gap: 10px; }
+.ci-status { display: flex; align-items: center; gap: 10px; }
+.ci-status .muted { flex: 1; font-family: var(--mono); word-break: break-all; }
+.chip.run::before { color: var(--accent); }
+.ci-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ci-timeline li { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; padding: 6px 10px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+.ci-timeline li .msg { grid-column: 2 / 4; color: var(--muted); font-size: 11px; font-family: var(--mono); }
+.ci-timeline li .dur { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+.ci-timeline li.running { border-color: var(--accent); }
+.ci-timeline li.failed { border-color: var(--err); } .ci-timeline li.failed .msg { color: var(--err); }
+.ci-timeline li.skipped { opacity: .5; }
+.ci-log { min-height: 200px; }

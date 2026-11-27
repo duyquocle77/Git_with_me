@@ -149,6 +149,7 @@ function getRun(id, tool) {
 
 function onRunEvent(kind, p) {
   if (!p || !p.run_id) return;
+  if (p.run_id.startsWith("ci-")) return; // CI/CD runs are shown in their own tab
   const r = getRun(p.run_id, p.tool);
   if (kind === "started") {
     r.logs.push({ level: "sys", message: `▶ ${r.tool} ${JSON.stringify(p.params)}` });
