@@ -166,6 +166,7 @@ function onRunEvent(kind, p) {
     const secs = ((new Date() - r.started) / 1000).toFixed(1);
     r.logs.push({ level: p.ok ? "sys" : p.cancelled ? "warn" : "error",
       message: p.ok ? `✔ done in ${secs}s` : `✖ ${p.error}${p.traceback ? "\n" + p.traceback : ""}` });
+    if (typeof fx !== "undefined") fx.toast(`${r.tool}: ${p.ok ? "done" : p.cancelled ? "stopped" : "failed"} (${secs}s)`, p.ok ? "ok" : p.cancelled ? "warn" : "error");
   }
   scheduleRender();
 }

@@ -200,6 +200,7 @@ async function ciRun() {
   setHero("running");
   renderGraph(ci.run.steps);
   startTimer();
+  fx.toast(`Started ${p.name}${params.VERSION ? " · " + params.VERSION : ""}`, "info", 2500);
   try {
     const force = toggles.filter((t) => t.on && !t.step.enabled).map((t) => t.step.id);
     ci.run.id = await api().CicdRun(p.id, { ...params, __force: force }, skip, ci.settings);
@@ -256,27 +257,52 @@ function setHero(state) {
   if (state === "idle") { $("#ci-elapsed").textContent = "⏱ —"; $("#ci-eta").textContent = ""; $("#ci-progress-bar").style.width = "0"; }
 }
 
+function edgeClass(prev, s) {
+  if (s.status === "running") return "active";
+  if (["ok", "failed", "cancelled"].includes(s.status) && prev.status !== "pending") return "done";
+  if (prev.status === "ok" && s.status === "skipped") return "done";
+  return "";
+}
+
+function nodeMeta(s, dur) {
+  if (s.status === "skipped") return "skipped";
+  if (s.duration_s != null) return fmtSecs(s.duration_s);
+  if (s.status === "pending" && dur[s.id] != null) return `~${fmtSecs(dur[s.id])}`;
+  if (s.status === "running") return "…";
+  return "";
+}
+
+// Updates the graph in place when the step list is unchanged, so CSS transitions
+// (edge fill, badge pop, node glow) animate instead of being re-created.
 function renderGraph(steps) {
   const dur = ci.store.durations[ci.current?.id] || {};
-  const kids = [];
+  const graph = $("#ci-graph");
+  const nodes = graph.querySelectorAll(".node");
+  const same = nodes.length === steps.length && steps.every((s, i) => nodes[i].dataset.id === s.id);
+  if (!same) {
+    const kids = [];
+    steps.forEach((s, i) => {
+      if (i > 0) kids.push(el("div", { class: `edge ${edgeClass(steps[i - 1], s)}` }));
+      kids.push(el("div", { class: `node ${s.status}`, id: `node-${i}`, "data-id": s.id, style: `--i:${i}`, title: s.message || s.name },
+        el("div", { class: "node-dot" }, el("span", { class: "ico" }, s.icon || "⚙️")),
+        el("div", { class: "node-name" }, s.name),
+        el("div", { class: "node-meta" }, nodeMeta(s, dur))));
+    });
+    graph.replaceChildren(...kids);
+  }
+  const edges = graph.querySelectorAll(".edge");
   steps.forEach((s, i) => {
-    if (i > 0) {
-      const prev = steps[i - 1];
-      const cls = s.status === "running" ? "active" : ["ok", "failed", "cancelled"].includes(s.status) && prev.status !== "pending" ? "done"
-        : prev.status === "ok" && s.status === "skipped" ? "done" : "";
-      kids.push(el("div", { class: `edge ${cls}` }));
-    }
-    const badge = { ok: "✓", failed: "✕", cancelled: "■" }[s.status];
-    let meta = "";
-    if (s.status === "skipped") meta = "skipped";
-    else if (s.duration_s != null) meta = fmtSecs(s.duration_s);
-    else if (s.status === "pending" && dur[s.id] != null) meta = `~${fmtSecs(dur[s.id])}`;
-    kids.push(el("div", { class: `node ${s.status}`, id: `node-${i}`, title: s.message || s.name },
-      el("div", { class: "node-dot" }, s.icon || "⚙️", badge ? el("span", { class: "badge" }, badge) : null),
-      el("div", { class: "node-name" }, s.name),
-      el("div", { class: "node-meta" }, meta)));
+    const n = graph.querySelectorAll(".node")[i];
+    if (n.className !== `node ${s.status}`) n.className = `node ${s.status}`;
+    n.title = s.message || s.name;
+    if (s.status !== "running") n.querySelector(".node-meta").textContent = nodeMeta(s, dur);
+    const dot = n.querySelector(".node-dot");
+    const want = { ok: "✓", failed: "✕", cancelled: "■" }[s.status];
+    const badge = dot.querySelector(".badge");
+    if (!want && badge) badge.remove();
+    if (want && (!badge || badge.textContent !== want)) { badge?.remove(); dot.append(el("span", { class: "badge" }, want)); }
+    if (i > 0) edges[i - 1].className = `edge ${edgeClass(steps[i - 1], s)}`;
   });
-  $("#ci-graph").replaceChildren(...kids);
   updateProgress();
 }
 
@@ -313,12 +339,12 @@ function renderResult(p) {
     }
     box.className = "ci-result ok";
     box.replaceChildren(
-      el("h3", {}, `✅ Release ${r.version || ""} ready`),
+      el("h3", {}, "✅ ", el("span", { class: "grad" }, `Release ${r.version || ""} ready`)),
       el("div", { class: "sub" }, `${r.releaseDir}  ·  ${fmtSecs(secs)}`),
       el("div", { class: "row" }, openDir),
       el("div", { class: "art-groups" }, Object.entries(groups).map(([g, files]) => el("div", { class: "art-group" },
         el("h4", {}, g === "/" ? "root" : g),
-        files.map((f) => el("button", { class: "art", title: f.path, onclick: () => api().OpenPath(f.path) },
+        files.map((f, k) => el("button", { class: "art", style: `--i:${k}`, title: f.path, onclick: () => api().OpenPath(f.path) },
           el("span", {}, ART_ICON[f.name.split(".").pop().toLowerCase()] || "📄"),
           el("span", { class: "nm" }, f.name), el("span", { class: "sz" }, fmtSize(f.size))))))));
   } else {
@@ -389,6 +415,16 @@ function onCiFinished(p) {
   $("#ci-eta").textContent = "";
   flashLog(p.ok ? "ok" : "error", p.ok ? `✔ Pipeline succeeded in ${fmtSecs((Date.now() - r.started) / 1000)}` : `✖ ${p.error}`);
   renderResult(p);
+  if (p.ok) {
+    fx.confetti($("#ci-result h3") || $("#ci-hero"));
+    fx.toast(`Release ${r.version || ""} ready — ${r.pipeline.name}`, "ok", 6000, () => showView("cicd"));
+  } else if (p.cancelled) {
+    fx.toast("Pipeline stopped", "warn");
+  } else {
+    fx.shake($("#ci-hero"));
+    const failed = r.steps.find((s) => s.status === "failed");
+    fx.toast(`Pipeline failed${failed ? ` at “${failed.name}”` : ""}`, "error", 7000, () => showView("cicd"));
+  }
   ci.history.unshift({ state: r.state, pipeline: r.pipeline.name, version: r.version, releaseDir: r.releaseDir, error: p.error,
     at: new Date().toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }),
     secs: fmtSecs((Date.now() - r.started) / 1000) });

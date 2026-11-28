@@ -56,7 +56,10 @@ class AndroidAdb(Device):
         return d
 
     def _list_devices(self) -> list[tuple[str, str]]:
-        out = subprocess.run([self.cfg("adb", "adb"), "devices"], capture_output=True, text=True, timeout=5).stdout
+        try:
+            out = subprocess.run([self.cfg("adb", "adb"), "devices"], capture_output=True, text=True, timeout=5).stdout
+        except FileNotFoundError as exc:
+            raise RuntimeError("adb not found: install Android platform-tools or set \"adb\" in lab_config.json") from exc
         return [tuple(l.split("\t")[:2]) for l in out.splitlines()[1:] if "\t" in l]  # type: ignore[misc]
 
     def _refresh_info(self) -> None:

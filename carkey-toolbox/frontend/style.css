@@ -265,3 +265,123 @@ button.small { font-size: 11px; padding: 3px 8px; }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .ci-hero, .ci-progress, .ci-graph, .ci-result { flex-shrink: 0; }
+
+/* =====================================================================
+   Motion & effects
+   ===================================================================== */
+body { background:
+  radial-gradient(1200px 600px at 110% -10%, rgba(79,157,255,.08), transparent 60%),
+  radial-gradient(900px 500px at -10% 110%, rgba(143,107,255,.07), transparent 60%), var(--bg); }
+
+/* buttons: lift + ripple */
+button { position: relative; overflow: hidden; transition: transform .12s ease, box-shadow .2s ease, border-color .2s, background .2s; }
+button:not(:disabled):hover { transform: translateY(-1px); }
+button:not(:disabled):active { transform: translateY(0) scale(.98); }
+.ripple { position: absolute; border-radius: 50%; background: rgba(255,255,255,.35); transform: scale(0); animation: ripple .6s ease-out; pointer-events: none; }
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+
+/* tabs: sliding gradient ink */
+#tabs { position: relative; }
+#tab-ink { position: absolute; left: 0; bottom: -1px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--accent), #8f6bff);
+  box-shadow: 0 0 10px rgba(79,157,255,.6); transition: transform .35s cubic-bezier(.2,.8,.2,1), width .35s cubic-bezier(.2,.8,.2,1); }
+.tab { transition: color .2s, background .2s; }
+.tab:hover { color: var(--text); }
+
+/* views fade in */
+.view:not(.hidden) { animation: view-in .28s ease-out; }
+@keyframes view-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* cards: hover lift */
+.card, .ci-card, .ci-sec, .art-group, #ci-history .h-item { transition: transform .18s ease, box-shadow .25s ease, border-color .25s; }
+.card:hover, .art-group:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.35); border-color: #3d4352; }
+.ci-sec:hover, .ci-card:hover { border-color: #3d4352; }
+#ci-history .h-item:hover { transform: translateX(3px); }
+.tool-item { transition: background .15s, padding-left .15s; }
+.tool-item:hover { padding-left: 12px; }
+
+/* inputs glow on focus */
+input:focus, select:focus { box-shadow: 0 0 0 3px rgba(79,157,255,.18); transition: box-shadow .2s; }
+
+/* run button: idle sheen + breathing glow */
+.ci-run::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); transform: skewX(-20deg); animation: sheen 3.2s ease-in-out infinite; }
+.ci-run { animation: breathe 2.6s ease-in-out infinite; }
+@keyframes sheen { 0%, 60% { left: -60%; } 100% { left: 130%; } }
+@keyframes breathe { 50% { box-shadow: 0 4px 22px rgba(63,191,127,.65); } }
+.ci-stop { animation: stop-pulse 1.2s ease-in-out infinite; }
+@keyframes stop-pulse { 50% { box-shadow: 0 0 0 6px rgba(239,91,91,.0), 0 0 18px rgba(239,91,91,.55); } }
+
+/* hero: animated aurora while running, flash on finish */
+.ci-hero.running { background: linear-gradient(115deg, rgba(79,157,255,.20), rgba(143,107,255,.14), rgba(63,191,127,.10), rgba(79,157,255,.20));
+  background-size: 300% 100%; animation: aurora 6s linear infinite; border-color: rgba(79,157,255,.45); }
+.ci-hero.running::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
+  transform: translateX(-100%); animation: scan 2.4s ease-in-out infinite; pointer-events: none; }
+@keyframes aurora { to { background-position: 300% 0; } }
+@keyframes scan { to { transform: translateX(100%); } }
+.ci-hero.ok { animation: flash-ok .9s ease-out; }
+.ci-hero.failed { animation: flash-bad .9s ease-out; }
+@keyframes flash-ok { 0% { box-shadow: 0 0 0 0 rgba(63,191,127,.7); } 100% { box-shadow: 0 0 0 18px rgba(63,191,127,0); } }
+@keyframes flash-bad { 0% { box-shadow: 0 0 0 0 rgba(239,91,91,.7); } 100% { box-shadow: 0 0 0 18px rgba(239,91,91,0); } }
+.shake { animation: shake .45s; }
+
+/* graph: staggered entrance, pop on completion, edges fill */
+.node { animation: node-in .4s cubic-bezier(.2,.8,.2,1.2) both; animation-delay: calc(var(--i, 0) * 55ms); }
+@keyframes node-in { from { opacity: 0; transform: translateY(10px) scale(.85); } }
+.node.ok .node-dot { animation: pop .5s cubic-bezier(.2,.8,.2,1.4); box-shadow: 0 0 16px rgba(63,191,127,.35); }
+.node.failed .node-dot { box-shadow: 0 0 18px rgba(239,91,91,.45); }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.22); } 100% { transform: scale(1); } }
+.node-dot .badge { animation: badge-in .35s cubic-bezier(.2,.8,.2,1.6); }
+@keyframes badge-in { from { transform: scale(0) rotate(-90deg); } }
+.node.pending .node-dot { animation: float 3s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 200ms); }
+@keyframes float { 50% { transform: translateY(-3px); } }
+.edge { background: var(--border); }
+.edge::before { content: ""; position: absolute; inset: 0; width: 0; background: linear-gradient(90deg, var(--ok), #5fe3a1); transition: width .6s ease; }
+.edge.done { background: var(--border); }
+.edge.done::before { width: 100%; }
+.edge.active::before { width: 100%; background: linear-gradient(90deg, var(--ok), var(--accent)); }
+
+/* progress bar glow tip */
+#ci-progress-bar { position: relative; box-shadow: 0 0 10px rgba(79,157,255,.6); }
+
+/* result card + artifacts stagger */
+.art { animation: art-in .3s ease-out both; animation-delay: calc(var(--i, 0) * 35ms); }
+@keyframes art-in { from { opacity: 0; transform: translateX(-6px); } }
+.ci-result.ok h3 .grad { background: linear-gradient(90deg, #5fe3a1, #4f9dff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* console lines slide in */
+.ci-log > div { animation: line-in .18s ease-out; }
+@keyframes line-in { from { opacity: 0; transform: translateX(-4px); } }
+
+/* paths: pulsing dot when missing, check pop when ok */
+.path-row.missing .dot { animation: dot-pulse 1.3s ease-in-out infinite; }
+@keyframes dot-pulse { 50% { box-shadow: 0 0 0 5px rgba(239,91,91,0), 0 0 10px var(--err); transform: scale(1.25); } }
+.path-row.ok .dot { animation: pop .4s ease-out; }
+.ci-preview { transition: background .3s, border-color .3s; }
+.ci-saved { transition: opacity .4s, transform .4s; }
+
+/* lab: live status chip blink when ON, card log line slide */
+.chip.on::before { animation: pulse 1.6s ease-in-out infinite; }
+.card-log > div { animation: line-in .18s ease-out; }
+
+/* toasts */
+#toasts { position: fixed; bottom: 16px; right: 16px; z-index: 50; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast { pointer-events: auto; cursor: pointer; position: relative; overflow: hidden; display: flex; align-items: center; gap: 10px; min-width: 260px; max-width: 420px;
+  padding: 11px 14px 13px; border-radius: 10px; background: rgba(32,35,42,.92); backdrop-filter: blur(8px); border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0,0,0,.45); animation: toast-in .35s cubic-bezier(.2,.8,.2,1.2); font-size: 13px; }
+.toast.ok { border-color: rgba(63,191,127,.6); } .toast.error { border-color: rgba(239,91,91,.6); } .toast.warn { border-color: rgba(232,179,57,.6); }
+.toast .t-ico { font-size: 18px; }
+.toast .t-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--accent); transform-origin: left; animation: toast-bar linear forwards; }
+.toast.ok .t-bar { background: var(--ok); } .toast.error .t-bar { background: var(--err); } .toast.warn .t-bar { background: var(--warn); }
+.toast.out { animation: toast-out .3s ease-in forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(24px) scale(.95); } }
+@keyframes toast-out { to { opacity: 0; transform: translateX(40px); } }
+@keyframes toast-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+canvas.confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 60; }
+
+/* modal */
+#modal:not(.hidden) { animation: view-in .2s ease-out; }
+#modal:not(.hidden) .modal-box { animation: toast-in .25s cubic-bezier(.2,.8,.2,1.2); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

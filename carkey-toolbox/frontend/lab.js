@@ -20,6 +20,7 @@ function showView(name) {
   document.querySelectorAll(".view").forEach((v) => v.classList.toggle("hidden", v.id !== `view-${name}`));
   $("#tools-sidebar").classList.toggle("hidden", name !== "tools");
   try { localStorage.setItem("view", name); } catch {}
+  if (typeof fx !== "undefined") setTimeout(fx.moveInk, 0);
   if (name === "lab") { if (!lab.devices.length) labLoad(); startPolling(); } else stopPolling();
   if (name === "cicd" && window.cicdShow) window.cicdShow();
 }
@@ -110,6 +111,8 @@ async function runAction(dev, act, root, btn) {
     reportResult(dev.id, act, res, ms);
   } catch (e) {
     labLog(dev.id, "error", `✖ ${act.label}: ${e}`);
+    fx.toast(`${dev.name}: ${act.label} failed`, "error");
+    fx.shake(document.getElementById(`card-${dev.id}`));
   } finally {
     lab.running.delete(key);
     btn.classList.remove("running"); btn.disabled = false; btn.textContent = label;
