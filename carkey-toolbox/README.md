@@ -78,6 +78,11 @@ def run(ctx, log_file, max_m):
 Click **⟳ Reload tools** in the app — no rebuild needed.
 
 Parameter types: `string`, `int`, `float`, `bool`, `choice` (with `options=[...]`), `file` (adds a file picker).
+A parameter can be shown conditionally with `show_if={"other_param": ["value1", "value2"]}`.
+
+Bundled utilities: `crc_calc` – CRC-8/16/32/64 with AUTOSAR and common presets (self-checked against
+the catalogue check values) or custom parameters, over hex / text / binary / Intel HEX / S-record input
+with address range and gap fill; "ALL" mode compares every preset.
 
 Have a script/CLI you don't want to touch? See `tools/legacy_script.py` (runs a subprocess, streams output, supports Stop).
 

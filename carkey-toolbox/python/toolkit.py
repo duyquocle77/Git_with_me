@@ -37,6 +37,9 @@ class Param:
     help: str = ""
     options: list[str] = field(default_factory=list)  # for type="choice"
     required: bool = False
+    # Show this field only when other fields have one of the given values,
+    # e.g. {"source": ["file"]}. Purely a UI hint; hidden values are still sent.
+    show_if: dict[str, list] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.type not in PARAM_TYPES:

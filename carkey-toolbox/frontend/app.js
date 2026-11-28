@@ -91,12 +91,31 @@ function inputFor(p, value) {
   return el("label", { title: p.help }, p.label + (p.required ? " *" : ""), input);
 }
 
+// Hide/show fields whose param declares show_if: {otherField: [allowed values]}.
+function applyShowIf(form, params) {
+  const val = (name) => {
+    const i = form.querySelector(`[name="${name}"]`);
+    return !i ? undefined : i.type === "checkbox" ? i.checked : i.value;
+  };
+  for (const p of params) {
+    if (!p.show_if || !Object.keys(p.show_if).length) continue;
+    const input = form.querySelector(`[name="${p.name}"]`);
+    const label = input && input.closest("label");
+    if (!label) continue;
+    const visible = Object.entries(p.show_if).every(([k, allowed]) => allowed.map(String).includes(String(val(k))));
+    label.classList.toggle("hidden", !visible);
+  }
+}
+
 function selectTool(t) {
   state.selected = t;
   renderToolList();
   const saved = state.lastParams[t.name] || {};
   const form = el("form", { class: "params", onsubmit: (e) => { e.preventDefault(); runSelected(); } },
     t.params.map((p) => inputFor(p, p.name in saved ? saved[p.name] : p.default)));
+  form.addEventListener("input", () => applyShowIf(form, t.params));
+  form.addEventListener("change", () => applyShowIf(form, t.params));
+  applyShowIf(form, t.params);
   const panel = $("#tool-panel");
   panel.innerHTML = "";
   panel.append(

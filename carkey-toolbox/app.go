@@ -17,13 +17,14 @@ import (
 
 // ToolParam / ToolInfo mirror ToolSpec.info() on the Python side.
 type ToolParam struct {
-	Name     string   `json:"name"`
-	Type     string   `json:"type"`
-	Label    string   `json:"label"`
-	Default  any      `json:"default"`
-	Help     string   `json:"help"`
-	Options  []string `json:"options"`
-	Required bool     `json:"required"`
+	Name     string           `json:"name"`
+	Type     string           `json:"type"`
+	Label    string           `json:"label"`
+	Default  any              `json:"default"`
+	Help     string           `json:"help"`
+	Options  []string         `json:"options"`
+	Required bool             `json:"required"`
+	ShowIf   map[string][]any `json:"show_if,omitempty"`
 }
 
 type ToolInfo struct {

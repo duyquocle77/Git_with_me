@@ -385,3 +385,5 @@ canvas.confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointe
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+#tools-sidebar { flex: 1; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.sidebar-footer { margin-top: auto; }
