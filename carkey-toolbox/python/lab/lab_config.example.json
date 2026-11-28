@@ -1,0 +1,49 @@
+{
+  "_comment": "Copy to lab_config.json (per lab PC, not committed) and edit. Set enabled=false to hide a device.",
+  "devices": [
+    {
+      "id": "psu1",
+      "name": "ECU power supply",
+      "driver": "power_supply",
+      "transport": "mock",
+      "preset": "scpi",
+      "channel": 1,
+      "_examples": {
+        "tcp": {"transport": "tcp", "host": "192.168.1.50", "port": 5025},
+        "serial": {"transport": "serial", "port": "COM5", "baudrate": 9600},
+        "visa": {"transport": "visa", "resource": "USB0::0x1AB1::0x0E11::DP8XXXXXXX::INSTR"},
+        "presets": ["scpi", "rigol_dp800", "keysight_e36300"]
+      }
+    },
+    {
+      "id": "saleae",
+      "name": "Saleae Logic",
+      "driver": "saleae_logic",
+      "port": 10430,
+      "device_id": "",
+      "output_dir": "~/CarKeyToolbox/saleae"
+    },
+    {
+      "id": "ellisys",
+      "name": "Ellisys sniffer",
+      "driver": "ellisys",
+      "backend": "mock",
+      "output_dir": "~/CarKeyToolbox/ellisys",
+      "commands": {
+        "start": "",
+        "stop": "",
+        "save": "",
+        "status": ""
+      }
+    },
+    {
+      "id": "pixel",
+      "name": "Pixel (USB)",
+      "driver": "android_adb",
+      "adb": "adb",
+      "serial": "",
+      "app_package": "com.google.android.apps.walletnfcrel",
+      "output_dir": "~/CarKeyToolbox/android"
+    }
+  ]
+}

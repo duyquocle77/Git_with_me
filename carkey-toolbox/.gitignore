@@ -1,0 +1,8 @@
+build/bin/
+frontend/wailsjs/
+python/.venv/
+__pycache__/
+*.pyc
+python/lab/lab_config.json
+python/cicd/cicd_config.json
+python/cicd/cicd_settings.json

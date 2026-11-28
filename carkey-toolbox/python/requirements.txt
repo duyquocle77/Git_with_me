@@ -1,0 +1,8 @@
+# Python libraries the tools need (pyserial, python-can, bleak, ...)
+# Install: python -m venv python/.venv && python/.venv/bin/pip install -r python/requirements.txt
+
+# Lab Control tab (install only what your lab PC uses)
+logic2-automation>=1.0   # Saleae Logic 2
+pyserial>=3.5            # power supply over serial
+pyvisa>=1.13             # power supply over VISA (USB-TMC / GPIB / LAN)
+pyvisa-py>=0.7
